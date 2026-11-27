@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>XDAS – Quality Assurance: Review</title>
+<title>Quality Assurance: Review</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&family=Special+Elite&display=swap" rel="stylesheet">
 <style>
@@ -133,13 +133,17 @@ mark.fld{background:transparent;color:inherit;border-radius:2px;cursor:pointer;p
 mark.fld.hit{background:rgba(255,160,0,.5)!important;outline:2px solid #E07B00;outline-offset:1px}
 .imgwrap{position:relative;width:660px;max-width:100%;margin:0 auto;transform-origin:top center;transition:transform .2s;box-shadow:0 2px 10px rgba(16,24,40,.18);background:#fff}
 .imgwrap img{display:block;width:100%;height:auto;user-select:none;-webkit-user-drag:none}
+.missing-doc-page{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:24px;text-align:center;box-sizing:border-box;background:#F1F3F6;border:1px solid #D3D8DF;color:#4B5563;font-size:13px}
+.missing-doc-page span{font-size:11px;color:#6B7380}
 .ov{position:absolute;inset:0}
 .ebox{position:absolute;border:1.5px dashed rgba(90,100,115,.85);background:transparent;cursor:pointer;padding:0;border-radius:3px}
 .ebox.nohl{border-color:transparent}.ebox.nohl .etag{display:none}
 .ebox.focus{border:2px dashed #C77700;background:rgba(242,140,40,.07)}
 .ebox.sel{border:2.5px solid #2F6FD6;background:rgba(47,111,214,.05)}
+.ebox.inactive{border:2px solid #B42318;background:rgba(180,35,24,.08)}
 .etag{position:absolute;top:0;left:-1px;transform:translateY(-100%);font:500 10px Poppins,sans-serif;background:#5A6473;color:#fff;padding:1px 6px;border-radius:3px 3px 0 0;white-space:nowrap}
 .ebox.focus .etag{background:#B86A00}.ebox.sel .etag{background:#2F6FD6}
+.ebox.inactive .etag{background:#B42318}
 .fbox{position:absolute;background:rgba(255,205,40,.2);border:1px solid rgba(224,123,0,.55);border-radius:2px;cursor:pointer;padding:0}
 .fbox.hit{background:rgba(255,160,0,.32);border:2px solid #E07B00}
 .ocrview{width:600px;margin:0 auto;background:#fff;padding:26px 30px;box-shadow:0 2px 10px rgba(16,24,40,.12);transform-origin:top center;transition:transform .2s}
@@ -159,12 +163,13 @@ mark.fld.hit{background:rgba(255,160,0,.5)!important;outline:2px solid #E07B00;o
 </div>
 <script>
 const STORE_KEY='lpsQA.allocation';
+const REVIEW_KEY='lpsQA.review.v1';
 const P=new URLSearchParams(location.search);
 let STORED=null;try{STORED=JSON.parse(localStorage.getItem(STORE_KEY)||'null');}catch(e){}
-const PREVIEW=P.has('et');
-const QA_MODE=PREVIEW?(P.get('mode')==='intelligent'?'intelligent':'random'):(STORED&&STORED.mode==='intelligent'?'intelligent':'random');
-const FOCUS=PREVIEW?P.get('et').split('|').map(s=>s.trim()).filter(Boolean):((STORED&&Array.isArray(STORED.entryTypes))?STORED.entryTypes:[]);
-const SAVED_AT=(!PREVIEW&&STORED&&STORED.savedAt)?new Date(STORED.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'}):'';
+const QA_MODE=STORED&&STORED.mode==='intelligent'?'intelligent':(P.get('mode')==='intelligent'?'intelligent':'random');
+const FOCUS=STORED&&Array.isArray(STORED.entryTypes)?STORED.entryTypes:(P.has('et')?P.get('et').split('|').map(s=>s.trim()).filter(Boolean):[]);
+const SAVED_AT=STORED&&STORED.savedAt?new Date(STORED.savedAt).toLocaleString('en-GB',{day:'2-digit',month:'short',minute:'2-digit'}):'';
+const ALLOCATION_ID=STORED&&STORED.id?STORED.id:'manual-review';
 const esc=s=>String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 // Where qa_ingest.py wrote the delivery. Served from the same folder as this page.
 const DATA_ROOT='qa_data';
@@ -200,47 +205,112 @@ const MOCK={id:'DN-35846',file:'35846',county:'Down',batch:'B-234',analyst:'Anal
 function normalise(list){return list.map(F=>{
   if(F.kind==='mock'){
     F.items.sort((a,b)=>a.page-b.page||a.order-b.order);
-    F.E=F.items.filter(x=>x.fields).map(x=>Object.assign({},x,{fields:x.fields.map((f,k)=>({label:f[0],value:f[1],conf:f[2],onImage:(x.text+' '+x.margin).indexOf('['+k+']')>=0}))}));
+    F.E=F.items.filter(x=>x.fields||x.inactive).map(x=>Object.assign({},x,{id:x.id||x.order+'-'+x.type,fields:(x.fields||[]).map((f,k)=>({label:f[0],value:f[1],flag:f[2],onImage:(x.text+' '+x.margin).indexOf('['+k+']')>=0}))}));
   }else{
-    F.E=F.entries.slice().sort((a,b)=>a.page-b.page||a.order-b.order).map(x=>({type:x.type,page:x.page,order:x.order,box:x.box||null,fields:x.fields.map(f=>({label:f.label,value:f.value,conf:f.basis||'',box:f.box||null,onImage:!!f.box}))}));
+    F.E=F.entries.slice().sort((a,b)=>a.page-b.page||a.order-b.order).map(x=>({
+      id:x.id,type:x.type,page:x.page,order:x.order,box:x.box||null,inactive:!!x.inactive,
+      cancellationStatus:x.cancellationStatus||'',flag:x.flag||'',
+      fields:(x.fields||[]).map(f=>({label:f.label,value:f.value,flag:f.flag||x.flag||'',box:f.box||null,onImage:!!f.box}))
+    }));
   }
   // entries sharing a page/entry position (one paragraph captured as several entry types) are numbered 4a, 4b, 4c
   let n=0;F.E.forEach((e,i)=>{const prev=F.E[i-1];if(!(prev&&prev.page===e.page&&prev.order===e.order))n++;e.n=n;});
   F.E.forEach((e,i)=>{const sib=F.E.filter(x=>x.page===e.page&&x.order===e.order);e.sib=sib.length;if(!e.box)e.box=(sib.find(x=>x.box)||{}).box||null;e.no=sib.length>1?e.n+'abcdefghij'[sib.indexOf(e)]:String(e.n);});
+  const pageCount=Math.max(F.pages.length,...F.E.map(e=>Number(e.page)||1),1);
+  while(F.pages.length<pageCount){
+    const first=F.pages[0]||{};
+    F.pages.push({img:null,width:first.width||612,height:first.height||842,missing:true});
+  }
   return F;
 });}
 let FOLIOS=[];
 const inFocus=e=>FOCUS.length===0||FOCUS.includes(e.type);
 const hasFocus=F=>FOCUS.length>0&&F.E.some(e=>FOCUS.includes(e.type));
-const seqOf=F=>F.E.map((e,i)=>i).filter(i=>!hasFocus(F)||inFocus(F.E[i]));
+const seqOf=F=>F.E.map((e,i)=>i).filter(i=>inFocus(F.E[i]));
 const S={f:0,src:'original',zoom:100,rot:0,hl:true,vals:{},comments:{},openC:null,draft:'',err:'',modal:null,mSel:'',mText:'',toast:'',fsel:null,scrollTo:null,
-  fs:[]};
-const newFs=()=>FOLIOS.map(F=>({page:1,cur:seqOf(F)[0]||0,status:F.E.map(()=>'Pending'),listOpen:true}));
+  fs:[],complete:false};
+const newFs=()=>FOLIOS.map(F=>{
+  const saved=loadSavedFolio(F.id);
+  const status=F.E.map((_,index)=>saved.status&&saved.status[index]||'Pending');
+  const pending=seqOf(F).find(index=>status[index]==='Pending');
+  return {page:1,cur:pending===undefined?(seqOf(F)[0]||0):pending,status,submitted:!!saved.submitted,listOpen:true};
+});
 const FF=()=>FOLIOS[S.f], FS=()=>S.fs[S.f];
+function loadReviewData(){
+  try{return JSON.parse(localStorage.getItem(REVIEW_KEY)||'{}');}catch(e){return {};}
+}
+function loadSavedFolio(folioId){
+  return loadReviewData()[ALLOCATION_ID]?.folios?.[folioId]||{};
+}
+function restoreSavedFields(){
+  const states=loadReviewData()[ALLOCATION_ID]?.folios||{};
+  FOLIOS.forEach((folio,folioIndex)=>{
+    const saved=states[folio.id]||{};
+    Object.entries(saved.values||{}).forEach(([fieldKey,value])=>{
+      const [entryId,fieldIndex]=fieldKey.split('|');
+      const entryIndex=folio.E.findIndex(entry=>entry.id===entryId);
+      if(entryIndex>=0)S.vals[`${folioIndex}.${entryIndex}.${fieldIndex}`]=value;
+    });
+    Object.entries(saved.comments||{}).forEach(([fieldKey,value])=>{
+      const [entryId,fieldIndex]=fieldKey.split('|');
+      const entryIndex=folio.E.findIndex(entry=>entry.id===entryId);
+      if(entryIndex>=0)S.comments[`${folioIndex}.${entryIndex}.${fieldIndex}`]=value;
+    });
+  });
+}
+function persistReview(){
+  try{
+    const data=loadReviewData(),allocation=data[ALLOCATION_ID]||{folios:{}};
+    const folio=FF(),state=FS(),values={},comments={};
+    Object.entries(S.vals).forEach(([key,value])=>{
+      const [folioIndex,entryIndex,fieldIndex]=key.split('.');
+      if(+folioIndex===S.f&&folio.E[+entryIndex])values[`${folio.E[+entryIndex].id}|${fieldIndex}`]=value;
+    });
+    Object.entries(S.comments).forEach(([key,value])=>{
+      const [folioIndex,entryIndex,fieldIndex]=key.split('.');
+      if(+folioIndex===S.f&&folio.E[+entryIndex])comments[`${folio.E[+entryIndex].id}|${fieldIndex}`]=value;
+    });
+    allocation.folios[folio.id]={status:state.status.slice(),submitted:!!state.submitted,values,comments};
+    data[ALLOCATION_ID]=allocation;
+    localStorage.setItem(REVIEW_KEY,JSON.stringify(data));
+  }catch(e){}
+}
 const ic=d=>'<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">'+d+'</svg>';
 const L='<path d="M15 6l-6 6 6 6"/>',R='<path d="M9 6l6 6-6 6"/>';
 const PIN='<path d="M12 21s-6-5.3-6-10a6 6 0 0 1 12 0c0 4.7-6 10-6 10z"/><circle cx="12" cy="11" r="2"/>';
-const confP=c=>{c=String(c==null?'':c).trim();if(!c)return '<span class="pill p-na" style="justify-self:start" title="Not supplied in the data extract">n/a</span>';
-  const k=c.toLowerCase();const cls={high:'p-ok',medium:'p-warn',low:'p-bad',observed:'p-ok',human:'p-ok',derived:'p-warn',default:'p-grey'}[k]||'p-info';
-  return '<span class="pill '+cls+'" style="justify-self:start">'+(cls==='p-info'?esc(c):k.charAt(0).toUpperCase()+k.slice(1))+'</span>';};
+const flagP=c=>{c=String(c==null?'':c).trim();if(!c)return '<span class="pill p-na" style="justify-self:start" title="No reason-code flag supplied">n/a</span>';
+  const k=c.toLowerCase(),label=k==='medium'?'Med':k.charAt(0).toUpperCase()+k.slice(1);
+  const cls={high:'p-ok',med:'p-warn',medium:'p-warn',low:'p-bad'}[k]||'p-na';
+  return '<span class="pill '+cls+'" style="justify-self:start" title="Entry-level flag mapped from extraction reason codes">'+esc(label)+'</span>';};
 const stP=s=>'<span class="pill s-'+s.toLowerCase()+'">'+s+'</span>';
 const pct=b=>'left:'+(b[0]*100)+'%;top:'+(b[1]*100)+'%;width:'+((b[2]-b[0])*100)+'%;height:'+((b[3]-b[1])*100)+'%';
 const kOf=(i,k)=>S.f+'.'+i+'.'+k;
 
 function go(i,fromList){const F=FF(),st=FS();if(i<0||i>=F.E.length)return;st.cur=i;st.page=F.E[i].page;S.openC=null;S.draft='';S.err='';S.fsel=null;S.scrollTo='e'+i;if(fromList)st.listOpen=false;render();}
 function pickField(key){const [f,i,k]=key.split('.').map(Number);if(f!==S.f)return;const st=FS();if(st.cur!==i){st.cur=i;S.openC=null;S.draft='';}st.page=FF().E[i].page;S.fsel=key;S.scrollTo='f'+key;render();}
-function step(d){const F=FF(),st=FS();const seq=hasFocus(F)?seqOf(F):F.E.map((e,i)=>i);const k=seq.indexOf(st.cur);let t;if(k<0)t=d>0?seq.find(x=>x>st.cur):[...seq].reverse().find(x=>x<st.cur);else t=seq[k+d];if(t!==undefined)go(t);}
-function canStep(d){const F=FF(),st=FS();const seq=hasFocus(F)?seqOf(F):F.E.map((e,i)=>i);const k=seq.indexOf(st.cur);if(k<0)return d>0?seq.some(x=>x>st.cur):seq.some(x=>x<st.cur);return seq[k+d]!==undefined;}
+function step(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);let t;if(k<0)t=d>0?seq.find(x=>x>st.cur):[...seq].reverse().find(x=>x<st.cur);else t=seq[k+d];if(t!==undefined)go(t);}
+function canStep(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);if(k<0)return d>0?seq.some(x=>x>st.cur):seq.some(x=>x<st.cur);return seq[k+d]!==undefined;}
 function flash(m){S.toast=m;render();clearTimeout(window._t);window._t=setTimeout(()=>{S.toast='';render();},2600);}
 function setFolio(n){if(n<0||n>=FOLIOS.length)return;S.f=n;S.openC=null;S.draft='';S.err='';S.fsel=null;S.scrollTo=null;render();}
 function decide(st){
   const F=FF(),fs=FS(),i=fs.cur;const hasNote=F.E[i].fields.some((f,k)=>S.comments[kOf(i,k)]);
-  if(st==='Rejected'&&!hasNote){S.err='Add a QA note on at least one field before rejecting.';render();return;}
+  if(st==='Rejected'&&!F.E[i].inactive&&!hasNote){S.err='Add a QA note on at least one field before rejecting.';render();return;}
   fs.status[i]=st;S.err='';S.openC=null;S.draft='';S.fsel=null;
-  const seq=hasFocus(F)?seqOf(F):F.E.map((e,j)=>j);let next=-1;
+  const seq=seqOf(F);let next=-1;
   for(let k=1;k<=F.E.length;k++){const j=(i+k)%F.E.length;if(seq.includes(j)&&fs.status[j]==='Pending'){next=j;break;}}
   if(next>=0){fs.cur=next;fs.page=F.E[next].page;S.scrollTo='e'+next;}
+  persistReview();
   flash('Entry '+F.E[i].no+' '+st.toLowerCase());
+}
+function submitFolio(){
+  const F=FF(),fs=FS(),scope=seqOf(F);
+  if(!scope.every(index=>fs.status[index]!=='Pending')){S.err='Review every in-scope entry before submitting this folio.';render();return;}
+  fs.submitted=true;persistReview();
+  for(let i=S.f+1;i<FOLIOS.length;i++){if(!S.fs[i].submitted)return setFolio(i);}
+  for(let i=0;i<S.f;i++){if(!S.fs[i].submitted)return setFolio(i);}
+  S.complete=true;render();
+  clearTimeout(window._completeTimer);
+  window._completeTimer=setTimeout(()=>{location.href='LPS_QA_Analytics.html?qa=complete';},2200);
 }
 function tok(str,i,e){return esc(str).replace(/\[(\d+)\]/g,(m,k)=>{k=+k;const key=kOf(i,k);return '<mark class="fld'+(S.fsel===key?' hit':'')+'" id="f'+key+'" data-a="fpick" data-v="'+key+'">'+esc(e.fields[k].value)+'</mark>';});}
 function mockPage(){
@@ -248,26 +318,29 @@ function mockPage(){
   const items=F.items.filter(x=>x.page===st.page);
   items.forEach(x=>{
     if(x.note){h+='<div class="blk nohl" style="cursor:default">'+esc(x.text)+'</div>';return;}
-    if(x.inactive){h+='<div class="blk struck nohl" style="cursor:default;opacity:.85"><span class="h" style="letter-spacing:1px;font-size:13px">'+x.heading+'</span><span class="body"><span class="mg">'+esc(x.margin)+'</span><span class="tx">'+esc(x.text)+'</span></span></div>';return;}
     const i=F.E.findIndex(e=>e.page===x.page&&e.order===x.order);const e=F.E[i];
-    const cls=['blk'];if(i===st.cur)cls.push('sel');else if(foc&&inFocus(e))cls.push('focus');else if(!S.hl)cls.push('nohl');
+    if(!e)return;
+    const cls=['blk'];if(e.inactive)cls.push('struck');if(i===st.cur)cls.push('sel');else if(foc&&inFocus(e))cls.push('focus');else if(!S.hl)cls.push('nohl');
     const s=st.status[i];
-    h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" data-a="pick" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'" aria-label="Entry '+e.no+', '+e.type+'"><span class="hd"><span class="num-b">'+e.no+'</span><span style="text-decoration:underline;letter-spacing:1px;font-size:13px">'+e.heading+'</span>'+(foc&&inFocus(e)?'<span class="pill p-warn" style="font-family:Poppins,sans-serif">QA Focus</span>':'')+(s!=='Pending'?'<span style="margin-left:auto;font-family:Poppins,sans-serif">'+stP(s)+'</span>':'')+'</span><span class="body"><span class="mg">'+tok(e.margin,i,e)+'</span><span class="tx">'+tok(e.text,i,e)+'</span></span></button>';
+    h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" data-a="pick" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'" aria-label="Entry '+e.no+', '+e.type+(e.inactive?', cancelled, not captured':'')+'"><span class="hd"><span class="num-b">'+e.no+'</span><span style="text-decoration:underline;letter-spacing:1px;font-size:13px">'+(e.heading||e.type)+'</span>'+(e.inactive?'<span class="pill p-bad" style="font-family:Poppins,sans-serif">Struck-through · not captured</span>':'')+(foc&&inFocus(e)?'<span class="pill p-warn" style="font-family:Poppins,sans-serif">QA Focus</span>':'')+(s!=='Pending'?'<span style="margin-left:auto;font-family:Poppins,sans-serif">'+stP(s)+'</span>':'')+'</span><span class="body"><span class="mg">'+esc(e.margin||'')+'</span><span class="tx">'+tok(e.text||'',i,e)+'</span></span></button>';
   });
   return h;
 }
 function imagePage(){
   const F=FF(),st=FS();const pg=F.pages[st.page-1];const foc=hasFocus(F);
-  let h='<img src="'+pg.img+'" alt="Folio '+esc(F.id)+', image '+st.page+'"><div class="ov">';
+  const pageContent=pg&&pg.img?'<img src="'+pg.img+'" alt="Folio '+esc(F.id)+', image '+st.page+'">':
+    '<div class="missing-doc-page" style="aspect-ratio:'+(pg?.width||612)+'/'+(pg?.height||842)+'"><b>Source image unavailable for page '+st.page+'</b><span>Entry positions are shown when geometry is available.</span></div>';
+  let h=pageContent+'<div class="ov">';
   F.E.forEach((e,i)=>{
     if(e.page!==st.page)return;
     const grp=F.E.map((x,j)=>j).filter(j=>F.E[j].page===e.page&&F.E[j].order===e.order);
     if(grp[0]!==i)return;const bx=grp.map(j=>F.E[j].box).find(Boolean);if(!bx)return;
+    const inactive=grp.some(j=>F.E[j].inactive);
     const curIn=grp.includes(st.cur),anyFocus=foc&&grp.some(j=>inFocus(F.E[j]));
-    const cls=['ebox'];if(curIn)cls.push('sel');else if(anyFocus)cls.push('focus');else if(!S.hl)cls.push('nohl');
+    const cls=['ebox'];if(inactive)cls.push('inactive');if(curIn)cls.push('sel');else if(anyFocus)cls.push('focus');else if(!S.hl)cls.push('nohl');
     const fj=grp.find(j=>foc&&inFocus(F.E[j]));
     const tgt=curIn?grp[(grp.indexOf(st.cur)+1)%grp.length]:(fj!==undefined?fj:grp[0]);
-    const tag=grp.length>1?F.E[grp[0]].no+'–'+F.E[grp[grp.length-1]].no+'. '+grp.map(j=>esc(F.E[j].type)+(st.status[j]!=='Pending'?' ('+st.status[j]+')':'')).join(', '):e.no+'. '+esc(e.type)+(st.status[i]!=='Pending'?' – '+st.status[i]:'');
+    const tag=(grp.length>1?F.E[grp[0]].no+'–'+F.E[grp[grp.length-1]].no+'. ':'')+grp.map(j=>esc(F.E[j].type)+(F.E[j].inactive?' · cancelled / struck-through, not captured':'')+(st.status[j]!=='Pending'?' ('+st.status[j]+')':'')).join(', ');
     h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" style="'+pct(bx)+'" data-a="pick" data-v="'+tgt+'" aria-label="'+(grp.length>1?'Entries '+grp.map(j=>F.E[j].no+' '+esc(F.E[j].type)).join(', '):'Entry '+e.no+', '+esc(e.type))+'"><span class="etag">'+tag+(anyFocus?' (QA Focus)':'')+'</span></button>';
   });
   const e=F.E[st.cur];
@@ -280,36 +353,40 @@ function textView(){
   const list=F.E.map((e,i)=>[e,i]).filter(p=>p[0].page===st.page);
   if(!list.length)h+='<div class="small muted">No captured entries on this image.</div>';
   list.forEach(([e,i])=>{const cls=['oe'];if(i===st.cur)cls.push('sel');else if(foc&&inFocus(e))cls.push('focus');
-    h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" data-a="pick" data-v="'+i+'"><b style="font-weight:600">'+e.no+'. '+esc(e.type)+'</b>'+(foc&&inFocus(e)?' <span class="pill p-warn">QA Focus</span>':'')+'<br>'+e.fields.map((f,k)=>{const key=kOf(i,k);return '<span class="muted">'+esc(f.label)+':</span> <mark class="fld'+(S.fsel===key?' hit':'')+'" id="f'+key+'" data-a="fpick" data-v="'+key+'">'+esc(f.value)+'</mark>';}).join('<br>')+'</button>';});
+    h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" data-a="pick" data-v="'+i+'"><b style="font-weight:600">'+e.no+'. '+esc(e.type)+'</b>'+(e.inactive?' <span class="pill p-bad">Cancelled / struck-through · not captured</span>':'')+(foc&&inFocus(e)?' <span class="pill p-warn">QA Focus</span>':'')+'<br>'+e.fields.map((f,k)=>{const key=kOf(i,k);return '<span class="muted">'+esc(f.label)+':</span> <mark class="fld'+(S.fsel===key?' hit':'')+'" id="f'+key+'" data-a="fpick" data-v="'+key+'">'+esc(f.value)+'</mark>';}).join('<br>')+'</button>';});
   return h;
 }
 function render(){
+  if(S.complete){
+    document.getElementById('root').innerHTML='<header class="top"><h1>Quality Assurance: Review</h1></header><div style="padding:28px"><section class="card" style="max-width:620px;margin:8vh auto;padding:28px;display:flex;flex-direction:column;gap:12px"><span class="pill p-ok" style="align-self:flex-start">Queue complete</span><h2 style="font-size:22px">No More Folios to QA</h2><p class="muted" style="margin:0">All folios in this allocation have been submitted. Your progress is saved in this browser.</p><a class="btn btn-primary" style="align-self:flex-start" href="LPS_QA_Analytics.html?qa=complete">Go to Dashboard</a></section></div>';
+    return;
+  }
   if(!FOLIOS.length){
     const msg=DATA_BANNER||('Reading <code>'+DATA_ROOT+'/index.json</code>…');
-    document.getElementById('root').innerHTML='<header class="top"><div style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap"><h1>Quality Assurance</h1><a class="small" href="LPS_QA_Allocation.html" style="text-decoration:none">Back to Allocation</a></div></header><div style="padding:22px"><div class="card" style="padding:18px;max-width:680px;display:flex;flex-direction:column;gap:10px"><h2>Nothing to review</h2><span class="small muted" role="status">'+msg+'</span><span class="small muted">Ingest a delivery with <code>python qa_ingest.py "&lt;root folder&gt;"</code>, then serve this folder (<code>python -m http.server 8080</code>) and reload.</span></div></div>';
+    document.getElementById('root').innerHTML='<header class="top"><div style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap"><h1>Quality Assurance: Review</h1><a class="small" href="LPS_QA_Allocation.html" style="text-decoration:none">Back to Allocation</a></div></header><div style="padding:22px"><div class="card" style="padding:18px;max-width:680px;display:flex;flex-direction:column;gap:10px"><h2>Nothing to review</h2><span class="small muted" role="status">'+msg+'</span><span class="small muted">Ingest a delivery with <code>python qa_ingest.py "&lt;root folder&gt;"</code>, then serve this folder (<code>python -m http.server 8080</code>) and reload.</span></div></div>';
     return;
   }
   const F=FF(),st=FS(),cur=F.E[st.cur];const NP=F.pages.length,NE=F.E.length;
-  const cnt={Pending:0,Accepted:0,Rejected:0};st.status.forEach(x=>cnt[x]++);
-  const foc=hasFocus(F),seq=seqOf(F);
-  const folioDone=(foc?seq:F.E.map((e,i)=>i)).every(i=>st.status[i]!=='Pending');
-  let h='<header class="top"><div style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap"><h1>Quality Assurance</h1><a class="small" href="LPS_QA_Allocation.html" style="text-decoration:none">Back to Allocation</a><a class="small" href="LPS_QA_Analytics.html" style="margin-left:auto;text-decoration:none;display:flex;align-items:center;gap:6px">'+ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>')+'Dashboard</a></div>';
+  const seq=seqOf(F),cnt={Pending:0,Accepted:0,Rejected:0};seq.forEach(i=>cnt[st.status[i]]++);
+  const foc=FOCUS.length>0,folioDone=seq.every(i=>st.status[i]!=='Pending');
+  let h='<header class="top"><div style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap"><h1>Quality Assurance: Review</h1><a class="small" href="LPS_QA_Allocation.html" style="text-decoration:none">Back to Allocation</a><a class="small" href="LPS_QA_Analytics.html" style="margin-left:auto;text-decoration:none;display:flex;align-items:center;gap:6px">'+ic('<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><path d="M17.5 14v7M14 17.5h7"/>')+'Dashboard</a></div>';
   h+='<div class="meta"><span><span class="k">Batch</span><b>'+esc(F.batch)+'</b></span><span><span class="k">Folio</span><span class="pager"><button type="button" data-a="fol" data-v="-1" aria-label="Previous folio"'+(S.f===0?' disabled':'')+'>'+ic(L)+'</button><span>'+esc(F.id)+' ('+(S.f+1)+' of '+FOLIOS.length+')</span><button type="button" data-a="fol" data-v="1" aria-label="Next folio"'+(S.f===FOLIOS.length-1?' disabled':'')+'>'+ic(R)+'</button></span></span>';
   h+='<span><span class="k">Images</span><span class="pager"><button type="button" data-a="pg" data-v="-1" aria-label="Previous image"'+(st.page===1?' disabled':'')+'>'+ic(L)+'</button><span>'+st.page+' of '+NP+'</span><button type="button" data-a="pg" data-v="1" aria-label="Next image"'+(st.page===NP?' disabled':'')+'>'+ic(R)+'</button></span></span><span><span class="k">Entries</span><b>'+NE+'</b></span>';
   h+='<span style="display:inline-flex;align-items:center"><span class="k">Source</span><span class="seg" role="group" aria-label="Source type"><button type="button" data-a="src" data-v="original" aria-pressed="'+(S.src==='original')+'">Original</button><button type="button" data-a="src" data-v="ocr" aria-pressed="'+(S.src==='ocr')+'">OCR</button></span></span>';
   h+='<span><span class="k">File</span><b>'+esc(F.file)+'_p'+st.page+'.pdf</b></span><span><span class="k">Mobius QC Analyst</span><b>'+esc(F.analyst)+'</b></span></div></header>';
   if(DATA_BANNER)h+='<div class="scope all" role="status">'+DATA_BANNER+'</div>';
   const ftxt=FOCUS.length>4?FOCUS.slice(0,4).map(esc).join(', ')+' and '+(FOCUS.length-4)+' more':FOCUS.map(esc).join(', ');
-  if(foc)h+='<div class="scope" role="note"><b style="font-weight:600">Intelligent QA focus ('+FOCUS.length+' entry type'+(FOCUS.length>1?'s':'')+'):</b> <span title="'+FOCUS.map(esc).join(', ')+'">'+ftxt+'</span>. '+seq.length+' of '+NE+' entries in this folio need review; the rest can be skipped.'+(SAVED_AT?' <span style="opacity:.8">Set at allocation, '+SAVED_AT+'.</span>':'')+'<button type="button" class="btn btn-quiet btn-sm" style="margin-left:auto" data-a="clearfocus">'+(PREVIEW?'Exit Preview':'Clear Focus')+'</button></div>';
-  else h+='<div class="scope all" role="note"><b style="font-weight:600">'+(QA_MODE==='intelligent'?'Intelligent QA':'Random QA')+':</b> review all entries in this folio.'+(FOCUS.length?' None of the focus entry types appear in this folio.':'')+'<a href="?mode=intelligent&et=Transfer%20of%20Part|Easement" style="margin-left:auto">Preview with an Intelligent QA focus</a></div>';
+  if(foc)h+='<div class="scope" role="note"><b style="font-weight:600">Intelligent QA focus ('+FOCUS.length+' entry type'+(FOCUS.length>1?'s':'')+'):</b> <span title="'+FOCUS.map(esc).join(', ')+'">'+ftxt+'</span>. '+seq.length+' of '+NE+' entries in this folio need review; the rest can be skipped.'+(SAVED_AT?' <span style="opacity:.8">Set at allocation, '+SAVED_AT+'.</span>':'')+'</div>';
+  else h+='<div class="scope all" role="note"><b style="font-weight:600">'+(QA_MODE==='intelligent'?'Intelligent QA':'Random QA')+':</b> review all entries in this folio.</div>';
   h+='<div class="work">';
   // LHS
   const isImg=F.kind==='image';
   h+='<section class="card pane" aria-label="Folio image"><div class="bar"><b style="font-weight:500;margin-right:6px">'+esc(F.file)+'_p'+st.page+'.pdf</b><span role="group" aria-label="Images in folio" style="display:flex;gap:4px;flex-wrap:wrap">'+F.pages.map((p,n)=>'<button type="button" class="tab" data-a="page" data-v="'+(n+1)+'" aria-pressed="'+(n+1===st.page)+'" aria-label="Image '+(n+1)+'">'+(n+1)+'</button>').join('')+'</span>';
   h+='<div class="tools"><span class="small" style="padding:0 8px;min-width:44px;text-align:center">'+S.zoom+'%</span><button type="button" data-a="zout" aria-label="Zoom out">'+ic('<circle cx="12" cy="12" r="9"/><path d="M8 12h8"/>')+'</button><button type="button" data-a="zin" aria-label="Zoom in">'+ic('<circle cx="12" cy="12" r="9"/><path d="M8 12h8M12 8v8"/>')+'</button><button type="button" data-a="fit" aria-label="Fit to width">'+ic('<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>')+'</button><button type="button" data-a="rot" aria-label="Rotate 90 degrees">'+ic('<path d="M20 12a8 8 0 1 1-2.3-5.6"/><path d="M20 4v5h-5"/>')+'</button><button type="button" data-a="reset" aria-label="Reset view">'+ic('<path d="M4 12a8 8 0 0 1 14-5.3L20 9M20 4v5h-5"/><path d="M20 12a8 8 0 0 1-14 5.3L4 15M4 20v-5h5"/>')+'</button><button type="button" data-a="hl" aria-pressed="'+S.hl+'" aria-label="Show entry outlines">'+ic('<rect x="4" y="5" width="16" height="5" rx="1"/><rect x="4" y="14" width="16" height="5" rx="1" stroke-dasharray="2 2"/>')+'</button></div></div>';
-  h+='<div class="legend"><span><span style="width:12px;height:12px;border:2px solid #2F6FD6;border-radius:2px"></span>Selected entry</span>'+(foc?'<span><span style="width:12px;height:12px;border:1.5px dashed #C77700;border-radius:2px;background:rgba(242,140,40,.1)"></span>QA focus entry</span>':'')+'<span><span style="width:12px;height:12px;border:1px dashed #8A94A3;border-radius:2px"></span>'+(foc?'Other extracted entry':'Extracted entry, click to review')+'</span><span><span style="width:14px;height:10px;background:rgba(255,160,0,.45);border:1.5px solid #E07B00;border-radius:2px"></span>Selected field text</span>'+(isImg?'':'<span><span style="width:14px;border-top:2px solid #B42318"></span>Struck through (inactive, not captured)</span>')+'</div>';
+  h+='<div class="legend"><span><span style="width:12px;height:12px;border:2px solid #2F6FD6;border-radius:2px"></span>Selected entry</span>'+(foc?'<span><span style="width:12px;height:12px;border:1.5px dashed #C77700;border-radius:2px;background:rgba(242,140,40,.1)"></span>QA focus entry</span>':'')+'<span><span style="width:12px;height:12px;border:1px dashed #8A94A3;border-radius:2px"></span>'+(foc?'Other extracted entry':'Extracted entry, click to review')+'</span><span><span style="width:14px;height:10px;background:rgba(255,160,0,.45);border:1.5px solid #E07B00;border-radius:2px"></span>Selected field text</span>'+(F.E.some(e=>e.inactive)?'<span><span style="width:14px;height:10px;border:2px solid #B42318;background:rgba(180,35,24,.08)"></span>Cancelled / struck-through · not captured</span>':'')+'</div>';
   if(cur&&cur.page!==st.page)h+='<div class="small" style="display:flex;align-items:center;gap:10px;padding:7px 12px;background:#EAF2FD;border-bottom:1px solid #D6E4F5;color:var(--blue-d)">Selected entry '+cur.no+' ('+esc(cur.type)+') is on image '+cur.page+'.<button type="button" class="btn btn-blue btn-sm" style="margin-left:auto;height:26px" data-a="page" data-v="'+cur.page+'">Go to Image '+cur.page+'</button></div>';
-  if(S.fsel){const k=+S.fsel.split('.')[2];const fld=cur&&cur.fields[k];if(fld&&!fld.onImage)h+='<div class="small" style="padding:7px 12px;background:#FFF8EC;border-bottom:1px solid #F3DDB8;color:#6B4400">'+esc(fld.label)+' has no marked position on the image'+(isImg?'.':'; it is derived from the folio header or entry context.')+'</div>';}
+  if(F.hasSource===false)h+='<div class="small" role="status" style="padding:7px 12px;background:#FFF8EC;border-bottom:1px solid #F3DDB8;color:#6B4400">The delivery has no original source image for this folio.</div>';
+  else if(S.fsel){const k=+S.fsel.split('.')[2];const fld=cur&&cur.fields[k];if(fld&&!fld.onImage)h+='<div class="small" style="padding:7px 12px;background:#FFF8EC;border-bottom:1px solid #F3DDB8;color:#6B4400">'+esc(fld.label)+' has no marked position on the image'+(isImg?'.':'; it is derived from the folio header or entry context.')+'</div>';}
   else if(isImg&&cur&&cur.page===st.page&&!cur.box)h+='<div class="small" style="padding:7px 12px;background:#FFF8EC;border-bottom:1px solid #F3DDB8;color:#6B4400">No bounding box was marked for this entry.</div>';
   const tf='transform:rotate('+S.rot+'deg) scale('+(S.zoom/100)+')';
   h+='<div class="viewer">';
@@ -327,23 +404,29 @@ function render(){
     h+='<div class="erow hdr"><span>S.No</span><span>Entry Type</span><span>QA Scope</span><span>Image</span><span>Status</span></div>';
     F.E.forEach((e,i)=>{const f=inFocus(e);const cls=['erow'];if(i===st.cur)cls.push('sel');else if(foc&&f)cls.push('focus');else if(foc)cls.push('skip');
       const scope=!foc?'<span class="pill p-info">All</span>':(f?'<span class="pill p-warn">QA Focus</span>':'<span class="pill p-grey">Skip</span>');
-      h+='<button type="button" class="'+cls.join(' ')+'" data-a="pickl" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'"><span>'+e.no+'</span><span>'+esc(e.type)+'</span><span>'+scope+'</span><span>'+e.page+'</span><span>'+stP(st.status[i])+'</span></button>';});
+      h+='<button type="button" class="'+cls.join(' ')+'" data-a="pickl" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'"><span>'+e.no+'</span><span>'+esc(e.type)+(e.inactive?'<br><span class="pill p-bad">Cancelled / struck-through · not captured</span>':'')+'</span><span>'+scope+'</span><span>'+e.page+'</span><span>'+stP(st.status[i])+'</span></button>';});
   }
   h+='</div>';
   if(cur){
   if(foc&&!inFocus(cur))h+='<div class="small" style="margin:8px 12px 0;padding:7px 10px;background:#F3F5F8;border-radius:6px;color:#4B5563">This entry is outside the QA focus. You can still review it, or use Next Entry to jump to the next focus entry.</div>';
+  if(cur.inactive){
+    h+='<div class="scope" role="note" style="margin:8px 12px 0;background:#FEF1F0;border-color:#F7C9C4;color:#8A1C17"><b>Cancelled / struck through</b><span>This inactive entry is included in QA allocation but was not captured.</span>'+(cur.cancellationStatus?'<span>Source status: '+esc(cur.cancellationStatus)+'</span>':'')+'</div>';
+  }else{
   h+='<div style="padding:12px 12px 6px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2>Extracted Fields</h2><span class="xs muted">'+cur.no+'. '+esc(cur.type)+(cur.sib>1?' (shares its position on the image with '+(cur.sib-1)+' other entry type'+(cur.sib>2?'s':'')+')':'')+'. Select a field name to locate its text on the image.</span></div>';
-  h+='<div style="padding:0 12px"><div class="fgrid h"><span>Field</span><span>Value</span><span>'+(F.kind==='mock'?'Confidence':'Capture basis')+'</span><span style="text-align:center">Note</span></div>';
+  h+='<div style="padding:0 12px"><div class="fgrid h"><span>Field</span><span>Value</span><span>Flag</span><span style="text-align:center">Note</span></div>';
   cur.fields.forEach((f,k)=>{const key=kOf(st.cur,k);const v=S.vals[key]!==undefined?S.vals[key]:String(f.value);const ed=v!==String(f.value);const cm=S.comments[key]||'';const op=S.openC===key;const on=S.fsel===key;
-    h+='<div class="frow'+(on?' on':'')+'" style="border-bottom:1px solid var(--line2)"><div class="fgrid"><button type="button" class="flab" data-a="fpick" data-v="'+key+'" aria-pressed="'+on+'" title="'+(f.onImage?'Locate on image':'No marked position on the image')+'">'+ic(PIN)+'<span>'+esc(f.label)+'</span></button><div><input id="fv'+key+'" class="fv'+(ed?' ed':'')+'" value="'+esc(v)+'" data-i="val" data-k="'+key+'" aria-label="'+esc(f.label)+' value">'+(ed?'<div class="xs" style="color:#9A4A00">Corrected by QA, was: '+esc(f.value)+'</div>':'')+'</div>'+confP(f.conf)+'<button type="button" class="cbtn'+(cm||op?' has':'')+'" data-a="cmt" data-v="'+key+'" aria-expanded="'+op+'" aria-label="'+(cm?'Edit':'Add')+' QA note on '+esc(f.label)+'">'+ic('<path d="M4 5h16v11H9l-5 4z"/>')+(cm?'<span class="dot"></span>':'')+'</button></div>';
+    h+='<div class="frow'+(on?' on':'')+'" style="border-bottom:1px solid var(--line2)"><div class="fgrid"><button type="button" class="flab" data-a="fpick" data-v="'+key+'" aria-pressed="'+on+'" title="'+(f.onImage?'Locate on image':'No marked position on the image')+'">'+ic(PIN)+'<span>'+esc(f.label)+'</span></button><div><input id="fv'+key+'" class="fv'+(ed?' ed':'')+'" value="'+esc(v)+'" data-i="val" data-k="'+key+'" aria-label="'+esc(f.label)+' value">'+(ed?'<div class="xs" style="color:#9A4A00">Corrected by QA, was: '+esc(f.value)+'</div>':'')+'</div>'+flagP(f.flag)+'<button type="button" class="cbtn'+(cm||op?' has':'')+'" data-a="cmt" data-v="'+key+'" aria-expanded="'+op+'" aria-label="'+(cm?'Edit':'Add')+' QA note on '+esc(f.label)+'">'+ic('<path d="M4 5h16v11H9l-5 4z"/>')+(cm?'<span class="dot"></span>':'')+'</button></div>';
     if(cm&&!op)h+='<div class="savednote">QA note: '+esc(cm)+'</div>';
     if(op)h+='<div class="noteed"><label for="nt'+key+'" class="xs" style="font-weight:500">QA note on '+esc(f.label)+'</label><textarea id="nt'+key+'" rows="2" data-i="draft" placeholder="What needs fixing, and why">'+esc(S.draft)+'</textarea><div style="display:flex;gap:6px;justify-content:flex-end"><button type="button" class="btn btn-quiet btn-sm" data-a="cancel">Cancel</button><button type="button" class="btn btn-sm" style="background:var(--blue);color:#fff" data-a="save" data-v="'+key+'">Save Note</button></div></div>';
     h+='</div>';});
   h+='</div>';
   }
+  }
   h+='<div style="margin-top:auto;padding:10px 12px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid var(--line);margin-top:12px">';
   if(S.err)h+='<span class="small" role="alert" style="color:#B42318">'+S.err+'</span>';
-  else if(folioDone)h+='<span class="small" role="status" style="color:#0E6B49;display:flex;align-items:center;gap:8px;flex-wrap:wrap">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' The folio is ready for LPS sign-off.'+(S.f<FOLIOS.length-1?'<button type="button" class="btn btn-outline btn-sm" data-a="fol" data-v="1">Next Folio</button>':'')+'</span>';
+  else if(folioDone)h+='<span class="small" role="status" style="color:#0E6B49">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' Submit this folio to continue.</span>';
+  else h+='<span class="small muted" role="status">'+seq.filter(i=>st.status[i]==='Pending').length+' in-scope entr'+(seq.filter(i=>st.status[i]==='Pending').length===1?'y':'ies')+' remaining.</span>';
+  h+='<button type="button" class="btn btn-primary" data-a="submitfolio"'+(folioDone?'':' disabled')+'>Submit Folio</button>';
   h+='<div class="actions" role="group" aria-label="Entry actions"><button type="button" class="btn btn-quiet" data-a="prev"'+(canStep(-1)?'':' disabled')+'>'+ic(L)+'Previous Entry</button><button type="button" class="btn btn-quiet" data-a="next"'+(canStep(1)?'':' disabled')+'>Next Entry'+ic(R)+'</button><span class="sep" aria-hidden="true"></span><button type="button" class="btn btn-ok" data-a="accept"'+(cur?'':' disabled')+'>Accept Entry</button><button type="button" class="btn btn-bad" data-a="reject"'+(cur?'':' disabled')+'>Reject Entry</button></div></div>';
   h+='</section></div>';
   if(S.modal){const isQ=S.modal==='query';const opts=isQ?[['entry-type','Entry type classification'],['illegible','Illegible or unclear text'],['active','Active or inactive status'],['schema','Schema or field rule']]:[['S01','Senior Analyst S01 (Mobius)'],['S02','Senior Analyst S02 (Mobius)'],['LEAD','LPS Lead Reviewer']];
@@ -375,12 +458,12 @@ root.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||
     case 'list':st.listOpen=!st.listOpen;break;
     case 'cmt':if(S.openC===v){S.openC=null;S.draft='';}else{S.openC=v;S.draft=S.comments[v]||'';}break;
     case 'cancel':S.openC=null;S.draft='';break;
-    case 'save':if(S.draft.trim())S.comments[v]=S.draft.trim();else delete S.comments[v];S.openC=null;S.draft='';S.err='';break;
-    case 'clearfocus':if(STORED){delete STORED.entryTypes;try{if(Object.keys(STORED).length)localStorage.setItem(STORE_KEY,JSON.stringify(STORED));else localStorage.removeItem(STORE_KEY);}catch(e){}}location.href='LPS_QA_Review.html';return;
+    case 'save':if(S.draft.trim())S.comments[v]=S.draft.trim();else delete S.comments[v];S.openC=null;S.draft='';S.err='';persistReview();break;
     case 'prev':return step(-1);
     case 'next':return step(1);
     case 'accept':return decide('Accepted');
     case 'reject':return decide('Rejected');
+    case 'submitfolio':return submitFolio();
     case 'modal':S.modal=v;S.mSel=v==='query'?'entry-type':'S01';S.mText='';break;
     case 'closem':S.modal=null;break;
     case 'submitm':{const sel=document.getElementById('msel');const label=sel?sel.options[sel.selectedIndex].text:'';const isQ=S.modal==='query';S.modal=null;return flash(isQ?'Query sent to Mobius QC: '+label:'Folio escalated to '+label);}
@@ -389,7 +472,7 @@ root.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el||
 });
 root.addEventListener('focusin',e=>{const el=e.target;if(el.dataset&&el.dataset.i==='val'&&S.fsel!==el.dataset.k){S.fsel=el.dataset.k;S.scrollTo='f'+el.dataset.k;render();}});
 root.addEventListener('input',e=>{const el=e.target;const i=el.dataset.i;if(!i)return;
-  if(i==='val'){S.vals[el.dataset.k]=el.value;render();}
+  if(i==='val'){S.vals[el.dataset.k]=el.value;persistReview();render();}
   else if(i==='draft')S.draft=el.value;
   else if(i==='mtxt')S.mText=el.value;});
 root.addEventListener('change',e=>{if(e.target.dataset.i==='msel')S.mSel=e.target.value;});
@@ -402,19 +485,27 @@ async function boot(){
     const res=await fetch(DATA_ROOT+'/index.json',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const index=await res.json();
-    let warnCount=0;
-    try{const w=await (await fetch(DATA_ROOT+'/warnings.json',{cache:'no-store'})).json();warnCount=w.count||0;}catch(e){}
     let items=[];
     (index.batches||[]).forEach(b=>(b.items||[]).forEach(it=>items.push(Object.assign({batch:b.name},it))));
     const total=items.length;let scopeTxt='';
     if(STORED){
-      const bs=Array.isArray(STORED.batches)?STORED.batches:[],fs=Array.isArray(STORED.folios)?STORED.folios:[];
-      if(bs.length&&!bs.includes('ALL'))items=items.filter(it=>bs.includes(it.batch));
-      if(fs.length&&!fs.includes('ALL'))items=items.filter(it=>fs.includes(it.id));
-      if(bs.length||fs.length)scopeTxt=' Showing the allocated scope: '+items.length+' of '+total+' folio'+(total===1?'':'s')+'.';
+      const allocated=Array.isArray(STORED.folioIds)?STORED.folioIds:(Array.isArray(STORED.folios)?STORED.folios:[]);
+      if(allocated.length&&!allocated.includes('ALL')){
+        const byId=new Map(items.map(item=>[item.id,item]));
+        items=allocated.map(id=>byId.get(id)).filter(Boolean);
+      }else{
+        const bs=Array.isArray(STORED.batches)?STORED.batches:[],fs=Array.isArray(STORED.folios)?STORED.folios:[];
+        if(bs.length&&!bs.includes('ALL'))items=items.filter(it=>bs.includes(it.batch));
+        if(fs.length&&!fs.includes('ALL'))items=items.filter(it=>fs.includes(it.id));
+      }
+      if(allocated.length||STORED.batches||STORED.folios)scopeTxt=' Showing the allocated scope: '+items.length+' of '+total+' folio'+(total===1?'':'s')+'.';
     }
     folios=await Promise.all(items.map(it=>fetch(it.json,{cache:'no-store'}).then(r=>r.json())));
-    if(folios.length)note='Loaded <b>'+folios.length+'</b> folio'+(folios.length===1?'':'s')+' from <code>'+DATA_ROOT+'</code>.'+scopeTxt+(warnCount?' <b>'+warnCount+'</b> ingest warning'+(warnCount===1?'':'s')+' — see <code>'+DATA_ROOT+'/warnings.json</code>.':'');
+    folios.forEach(F=>{
+      const assigned=STORED?.analystByFolio?.[F.id];
+      F.analyst=assigned?'Analyst '+assigned:(!F.analyst||F.analyst==='Unassigned'?'Analyst A03':F.analyst);
+    });
+    if(folios.length)note='Loaded <b>'+folios.length+'</b> folio'+(folios.length===1?'':'s')+' from <code>'+DATA_ROOT+'</code>.'+scopeTxt;
     else DATA_BANNER='No folios match the allocated scope. Open <a href="LPS_QA_Allocation.html">Allocation</a>, widen the scope or Reset, then allocate again.';
   }catch(err){
     DATA_BANNER='No ingested data found at <code>'+DATA_ROOT+'</code>, so the built-in sample folio is shown.';
@@ -422,8 +513,11 @@ async function boot(){
   if(folios===null)folios=[MOCK];
   FOLIOS=normalise(folios);
   if(FOLIOS.length&&!DATA_BANNER)DATA_BANNER=note;
-  S.f=0;
   S.fs=newFs();
+  restoreSavedFields();
+  const next=FOLIOS.findIndex((_folio,index)=>!S.fs[index].submitted);
+  if(next<0)S.complete=true;
+  else S.f=next;
   render();
 }
 boot();

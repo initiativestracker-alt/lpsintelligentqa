@@ -31,9 +31,11 @@ import subprocess
 import sys
 import zipfile
 from pathlib import Path
+from functools import lru_cache
 
 RENDER_DPI = 200
 POINTS_PER_PX = 72 / RENDER_DPI
+FIELD_NAMES_WORKBOOK = "23548 Output.xlsx"
 
 SOURCE_EXT = {".pdf"}
 IMAGE_EXT = {".jpg", ".jpeg", ".png", ".tif", ".tiff"}
@@ -55,6 +57,12 @@ SKIP_FIELDS = {"FOLIO_IMAGE_FILENAME", "FT_ENTRY_TEXT_TYPE_NAME", "IS_ENTRY_STRI
 
 COUNTY_PREFIX = {"antrim": "AN", "armagh": "AM", "down": "DN", "fermanagh": "FE",
                  "londonderry": "LY", "derry": "LY", "tyrone": "TY"}
+LOW_CONFIDENCE_REASONS = {
+    "BLANK_PAGE", "CANCELLATION_NEEDS_VISUAL_CONFIRMATION", "CHECK_CANCELLATION_SCOPE",
+    "ENTRY_EXTRACTION_FAILED", "INVALID_DATE", "INVALID_POSTCODE", "MISSING_FIELD_EVIDENCE",
+    "OCR_DISAGREEMENT", "UNANCHORED_VALUE", "UNKNOWN_COUNTY", "UNREADABLE_OR_DAMAGED",
+    "VALUE_NOT_CONFIRMED_BY_OCR", "WEAK_OCR",
+}
 
 
 class Warnings:
@@ -73,6 +81,89 @@ def humanise(code):
     """Turn a schema code into a readable label, matching the producer's own rule."""
     text = code.replace("_", " ").replace("FT ", "").replace("LHOLD", "Leasehold").strip()
     return " ".join(word.capitalize() for word in text.split())
+
+
+def _normalise_name(value):
+    return re.sub(r"[^a-z0-9]", "", str(value or "").casefold())
+
+
+def _normalise_sheet(value):
+    name = str(value or "").strip().casefold()
+    return "covenant" if name == "covenants" else name
+
+
+@lru_cache(maxsize=4)
+def load_field_names(workbook_path):
+    """Load LPS display labels keyed by entry type, table and internal field."""
+    from openpyxl import load_workbook
+
+    workbook = load_workbook(workbook_path, read_only=True, data_only=True)
+    by_sheet, by_table_field = {}, {}
+    try:
+        for sheet in workbook.worksheets:
+            rows = sheet.iter_rows(values_only=True)
+            for row in rows:
+                headers = {_normalise_name(value): index for index, value in enumerate(row)
+                           if isinstance(value, str)}
+                if not {"tablename", "fieldname", "fieldnamesperlps"} <= headers.keys():
+                    continue
+                table_i, field_i, label_i = (
+                    headers["tablename"], headers["fieldname"], headers["fieldnamesperlps"])
+                for values in rows:
+                    if max(table_i, field_i, label_i) >= len(values):
+                        continue
+                    table, field, label = values[table_i], values[field_i], values[label_i]
+                    if not table or not field or not label:
+                        continue
+                    table = str(table).strip().split("|")[-1].strip().upper()
+                    field = str(field).strip().upper()
+                    label = str(label).strip()
+                    by_sheet[(_normalise_sheet(sheet.title), table, field)] = label
+                    by_table_field.setdefault((table, field), set()).add(label)
+                break
+    finally:
+        workbook.close()
+
+    if not by_sheet:
+        raise ValueError(f"No TABLE_NAME / FIELD_NAME / Field Names Per LPS headers in {workbook_path}")
+    return by_sheet, by_table_field
+
+
+def display_field_name(field_names, entry_type, table, field):
+    if not field_names:
+        return humanise(field)
+    by_sheet, by_table_field = field_names
+    table_key = str(table or "").strip().split("|")[-1].strip().upper()
+    field_key = str(field or "").strip().upper()
+    label = by_sheet.get((_normalise_sheet(entry_type), table_key, field_key))
+    if label:
+        return label
+    shared_labels = by_table_field.get((table_key, field_key), set())
+    return next(iter(shared_labels)) if len(shared_labels) == 1 else humanise(field)
+
+
+def parse_reason_codes(value):
+    if not value:
+        return []
+    try:
+        parsed = json.loads(value)
+    except (TypeError, json.JSONDecodeError):
+        parsed = [part.strip() for part in str(value).split(",") if part.strip()]
+    if isinstance(parsed, str):
+        parsed = [parsed]
+    if not isinstance(parsed, list):
+        return []
+    return sorted({str(code).strip().upper() for code in parsed if str(code).strip()})
+
+
+def confidence_flag(reason_codes):
+    """Map explicit extraction reason codes to a conservative UI flag, not a probability."""
+    codes = {str(code).strip().upper() for code in reason_codes if str(code).strip()}
+    if not codes:
+        return "High"
+    if codes & LOW_CONFIDENCE_REASONS:
+        return "Low"
+    return "Med"
 
 
 def parse_name(filename):
@@ -388,7 +479,7 @@ def fraction(points, size_pt):
     return [round(max(0.0, min(1.0, v)), 5) for v in values]
 
 
-def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
+def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, field_names=None):
     """Turn one folio family into the JSON shape the Review page consumes."""
     if family["values"] is None:
         warnings.add(batch_name, f"{key}: no extracted output found; folio skipped")
@@ -411,6 +502,37 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
     prefix = COUNTY_PREFIX.get(county.lower(), "")
 
     pages = build_pages(key, family, payloads, out_dir, public, warnings, batch_name, extent)
+    page_map = {}
+    for page_data in pages:
+        match = re.match(r"p(\d+)", page_data[0].stem, re.IGNORECASE)
+        page_number = int(match.group(1)) if match else len(page_map) + 1
+        page_map[page_number] = page_data
+
+    referenced_pages = [pages_recorded]
+    for entry in entries:
+        info_page = to_int(coords_entries.get(entry["id"], {}).get("page"))
+        if info_page:
+            referenced_pages.append(info_page)
+        try:
+            source_pages = json.loads(entry["row"].get("source_pages") or "[]")
+        except json.JSONDecodeError:
+            source_pages = []
+        referenced_pages.extend(page for value in source_pages
+                                if (page := to_int(value)) is not None)
+
+    page_count = max([len(pages), *page_map.keys(), *referenced_pages, 1])
+    missing_pages = [page for page in range(1, page_count + 1) if page not in page_map]
+    if missing_pages and (family["source"] or family["images"]):
+        warnings.add(batch_name, f"{key}: source image missing for page(s) "
+                                 f"{', '.join(map(str, missing_pages))}; showing placeholders")
+    fallback_size = next(iter(page_map.values()), None)
+    fallback_width, fallback_height = ((fallback_size[2], fallback_size[3])
+                                       if fallback_size else (extent[0], extent[1]))
+    for page in missing_pages:
+        target = placeholder(out_dir, page, fallback_width, fallback_height)
+        page_map[page] = (target, f"{public}/batches/{batch_name}/{key}/{target.name}",
+                          fallback_width, fallback_height)
+    pages = [page_map[page] for page in range(1, page_count + 1)]
     sizes = {(number + 1): (w, h) for number, (_p, _u, w, h) in enumerate(pages)}
 
     built = []
@@ -419,38 +541,59 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
         entry_id = entry["id"]
         info = coords_entries.get(entry_id, {})
         fields, boxes = [], []
-        for table in sorted(tables):
-            try:
-                records = json.loads(row.get(table) or "[]")
-            except json.JSONDecodeError:
-                records = []
-            count = len(records) or 1
-            for index in range(count):
-                for field in tables[table]:
-                    if field in SKIP_FIELDS:
-                        continue
-                    value = row.get(f"{table}.{field}", "")
-                    if count > 1:
-                        try:
-                            values = json.loads(value) if value else []
-                        except json.JSONDecodeError:
-                            values = []
-                        value = values[index] if index < len(values) else ""
-                    if value in (None, ""):
-                        continue
-                    located = coords_index.get((entry_id, table, field), {})
-                    page = located.get("page") or info.get("page") or 1
-                    box = fraction(located.get("box"), sizes.get(page, (0, 0)))
-                    if box:
-                        boxes.append(box)
-                    fields.append({
-                        "label": humanise(field) + (f" #{index + 1}" if count > 1 else ""),
-                        "value": str(value),
-                        "table": table,
-                        "basis": located.get("basis", ""),
-                        "quote": located.get("quote", ""),
-                        "box": box,
-                    })
+        entry_type = row.get("entry_type") or "Entry"
+        cancellation_status = (row.get("cancellation_status") or "").strip()
+        strike_marker = str(row.get("FT_FOLIO_TEXT.IS_ENTRY_STRIKETHROUGH") or
+                             row.get("IS_ENTRY_STRIKETHROUGH") or "").strip().upper()
+        struck_through = strike_marker in {"Y", "C", "U", "B", "F"}
+        inactive = bool(cancellation_status) or struck_through
+        if struck_through and not cancellation_status:
+            cancellation_status = "Struck through"
+        reason_codes = parse_reason_codes(row.get("reason_codes"))
+        flag = confidence_flag(reason_codes)
+        if inactive:
+            for (located_entry, _table, _field), located in coords_index.items():
+                if located_entry != entry_id:
+                    continue
+                page = located.get("page") or info.get("page") or 1
+                box = fraction(located.get("box"), sizes.get(page, (0, 0)))
+                if box:
+                    boxes.append(box)
+        else:
+            for table in sorted(tables):
+                try:
+                    records = json.loads(row.get(table) or "[]")
+                except json.JSONDecodeError:
+                    records = []
+                count = len(records) or 1
+                for index in range(count):
+                    for field in tables[table]:
+                        if field in SKIP_FIELDS:
+                            continue
+                        value = row.get(f"{table}.{field}", "")
+                        if count > 1:
+                            try:
+                                values = json.loads(value) if value else []
+                            except json.JSONDecodeError:
+                                values = []
+                            value = values[index] if index < len(values) else ""
+                        if value in (None, ""):
+                            continue
+                        located = coords_index.get((entry_id, table, field), {})
+                        page = located.get("page") or info.get("page") or 1
+                        box = fraction(located.get("box"), sizes.get(page, (0, 0)))
+                        if box:
+                            boxes.append(box)
+                        fields.append({
+                            "label": display_field_name(field_names, entry_type, table, field)
+                                     + (f" #{index + 1}" if count > 1 else ""),
+                            "value": str(value),
+                            "table": table,
+                            "basis": located.get("basis", ""),
+                            "flag": flag,
+                            "quote": located.get("quote", ""),
+                            "box": box,
+                        })
 
         try:
             source_pages = json.loads(row.get("source_pages") or "[]")
@@ -460,11 +603,14 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
         number = to_int(info.get("number"))
         built.append({
             "id": entry_id,
-            "type": row.get("entry_type") or "Entry",
+            "type": entry_type,
             "page": page,
             "order": number if number is not None else entry["index"] + 1,
             "recordKind": row.get("record_kind") or "entry",
-            "inactive": bool((row.get("cancellation_status") or "").strip()),
+            "inactive": inactive,
+            "cancellationStatus": cancellation_status,
+            "reasonCodes": reason_codes,
+            "flag": flag,
             "box": union(boxes),
             "fields": fields,
         })
@@ -476,7 +622,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
         "folio": folio_name,
         "county": county,
         "batch": batch_name,
-        "analyst": "Unassigned",
+        "analyst": "Analyst A03",
         "sourceId": first.get("source_id") or "",
         "hasSource": bool(family["source"] or family["images"]),
         "pages": [{"img": url, "width": round(w, 1), "height": round(h, 1)} for _p, url, w, h in pages],
@@ -487,7 +633,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings):
 
 # --------------------------------------------------------------------------- driver
 
-def ingest(root, out_dir, public, warnings):
+def ingest(root, out_dir, public, warnings, field_names=None):
     batches = discover_batches(root, warnings)
     if not batches:
         warnings.add(None, f"no batch folders found under {root}", level="error")
@@ -514,7 +660,7 @@ def ingest(root, out_dir, public, warnings):
         for key in sorted(families):
             target_dir = out_dir / "batches" / folder.name / key
             folio = build_folio(key, families[key], payloads, folder.name,
-                                target_dir, public, warnings)
+                                target_dir, public, warnings, field_names)
             if folio is None:
                 continue
             (out_dir / "batches" / folder.name / f"{key}.json").write_text(
@@ -525,8 +671,14 @@ def ingest(root, out_dir, public, warnings):
             if folio["county"]:
                 counties[folio["county"]] = counties.get(folio["county"], 0) + 1
             batch_entries += len(folio["entries"])
+            type_counts_for_folio = {}
+            for entry in folio["entries"]:
+                type_counts_for_folio[entry["type"]] = type_counts_for_folio.get(entry["type"], 0) + 1
             folios.append({"id": folio["id"], "folio": folio["folio"], "file": folio["file"],
                            "county": folio["county"], "entries": len(folio["entries"]),
+                           "entryTypes": sorted(type_counts_for_folio),
+                           "entryTypeCounts": type_counts_for_folio,
+                           "inactiveEntries": sum(1 for entry in folio["entries"] if entry["inactive"]),
                            "hasSource": folio["hasSource"],
                            "json": f"{public}/batches/{folder.name}/{key}.json"})
 
@@ -573,6 +725,31 @@ def env_value(path, name):
     return None
 
 
+def resolve_field_names_workbook(project_dir, configured=None):
+    configured = configured or os.environ.get("FIELD_NAMES_WORKBOOK") or env_value(
+        project_dir / ".env", "FIELD_NAMES_WORKBOOK")
+    if configured:
+        path = Path(configured).expanduser()
+        if not path.is_absolute():
+            path = project_dir / path
+        if not path.is_file():
+            raise FileNotFoundError(f"Field names workbook not found: {path}")
+        return path.resolve()
+
+    candidates = [
+        project_dir.parent / "land_records_digitization" / FIELD_NAMES_WORKBOOK,
+        project_dir.parent / "land_records_digitization-main" / FIELD_NAMES_WORKBOOK,
+        project_dir.parent / FIELD_NAMES_WORKBOOK,
+    ]
+    for path in candidates:
+        if path.is_file():
+            return path.resolve()
+    raise FileNotFoundError(
+        f"Could not find {FIELD_NAMES_WORKBOOK}; set FIELD_NAMES_WORKBOOK in .env "
+        "to its absolute path."
+    )
+
+
 def main(argv=None):
     project_dir = Path(__file__).resolve().parent
     configured_root = os.environ.get("BATCH_ROOT_FOLDER") or env_value(
@@ -585,6 +762,8 @@ def main(argv=None):
                         help="where to write the ingested data (default: ./qa_data)")
     parser.add_argument("--public", default=None,
                         help="URL prefix for the generated data (default: the --out folder name)")
+    parser.add_argument("--field-names-workbook", default=None,
+                        help="workbook containing TABLE_NAME, FIELD_NAME and Field Names Per LPS")
     args = parser.parse_args(argv)
 
     root_value = args.root or configured_root
@@ -601,8 +780,13 @@ def main(argv=None):
     out_dir = args.out.expanduser().resolve()
     public = args.public or out_dir.name
     warnings = Warnings()
+    try:
+        field_names_path = resolve_field_names_workbook(project_dir, args.field_names_workbook)
+        field_names = load_field_names(str(field_names_path))
+    except (FileNotFoundError, ValueError) as error:
+        parser.error(str(error))
 
-    index = ingest(root, out_dir, public, warnings)
+    index = ingest(root, out_dir, public, warnings, field_names)
     (out_dir / "index.json").write_text(json.dumps(index, ensure_ascii=False, indent=1), encoding="utf-8")
     (out_dir / "warnings.json").write_text(
         json.dumps({"count": len(warnings.items), "items": warnings.items},

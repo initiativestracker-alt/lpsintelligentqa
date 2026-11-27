@@ -103,11 +103,11 @@ h2{margin:0;font-size:14px;font-weight:600}
 const DATA_ROOT='qa_data';
 const STORE_KEY='lpsQA.allocation';
 // Batches, folios and entry types all come from qa_data/index.json (written by qa_ingest.py).
-let BATCHES=[],FOLIOS={},ETS=[];
+let BATCHES=[],FOLIOS={},ETS=[],ALL_FOLIOS=[];
 const ANALYSTS=['A01','A02','A03','A04','A05','A06','A07','A08'];
 const EXPERTS=[['E1','LPS QA Expert 1','14 open'],['E2','LPS QA Expert 2','9 open'],['E3','LPS QA Expert 3','22 open'],['E4','LPS QA Expert 4','0 open'],['E5','LPS QA Expert 5','6 open']];
 const DEF=()=>({batch:['ALL'],folio:['ALL'],et:['ALL'],tags:[],analyst:['ALL']});
-const S={mode:'random',open:null,pct:10,allocated:false,err:'',ready:false,warnings:0,sel:Object.assign(DEF(),{expert:['ALL']})};
+const S={mode:'random',open:null,pct:10,allocated:false,err:'',ready:false,allocatedScope:null,sel:Object.assign(DEF(),{expert:['ALL']})};
 const fmt=n=>Math.round(n).toLocaleString('en-GB');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
@@ -122,12 +122,24 @@ function items(id){
 }
 const CFG=()=>({batch:['Select Batch(es)',true,'All Batches','Choose one or more batches'],folio:['Select Folio(s) within Batches',true,'All folios in selected batches','Choose folios'],et:['Entry Types for QA',true,'All entry types ('+ETS.length+')','Choose entry types'],tags:['Review Tags',false,'','No tags (all records)'],analyst:['Mobius Analysts',true,'All analysts','Choose analysts'],expert:['LPS QA Expert(s)',true,'All experts','Choose who reviews']});
 function selBatches(){const b=S.sel.batch;return BATCHES.filter(x=>b.includes('ALL')||b.includes(x.v));}
+function selectedEntryTypes(){return S.mode==='intelligent'&&!S.sel.et.includes('ALL')?S.sel.et.slice():[];}
+function eligibleFolios(){
+  const batches=S.sel.batch,folios=S.sel.folio,types=selectedEntryTypes();
+  return ALL_FOLIOS.filter(item=>
+    (batches.includes('ALL')||batches.includes(item.batch))&&
+    (folios.includes('ALL')||!folios.length||folios.includes(item.id))&&
+    (!types.length||Array.isArray(item.entryTypes)&&types.some(type=>item.entryTypes.includes(type))));
+}
+function entriesInScope(item){
+  const types=selectedEntryTypes(),counts=item.entryTypeCounts||{};
+  return types.length?types.reduce((total,type)=>total+(counts[type]||0),0):(item.entries||0);
+}
 function allOn(id){const its=items(id).filter(o=>!o.group);const s=S.sel[id];return CFG()[id][1]&&(s.includes('ALL')||(its.length>1&&its.every(o=>s.includes(o.v))));}
 function toggle(id,v){
   const its=items(id).filter(o=>!o.group).map(o=>o.v);let cur=S.sel[id].slice();
   if(v==='ALL'){cur=allOn(id)?[]:['ALL'];}
   else{if(cur.includes('ALL'))cur=its.slice();cur=cur.includes(v)?cur.filter(x=>x!==v):cur.concat([v]);if(id!=='tags'&&its.length>1&&its.every(x=>cur.includes(x)))cur=['ALL'];}
-  S.sel[id]=cur;S.allocated=false;S.err='';render();
+  S.sel[id]=cur;S.allocated=false;S.allocatedScope=null;S.err='';render();
 }
 function dd(id,disabled){
   const [label,hasAll,allLabel,ph]=CFG()[id];const its=items(id);const s=S.sel[id];const all=allOn(id);
@@ -144,29 +156,32 @@ function dd(id,disabled){
   return h+'</div>';
 }
 function calc(){
-  const isInt=S.mode==='intelligent';const sb=selBatches();
-  let pf=sb.reduce((a,b)=>a+b.folios,0),pe=sb.reduce((a,b)=>a+b.entries,0),etc='All '+ETS.length+' in-scope';
-  if(isInt){
-    const fs=S.sel.folio;const fo=items('folio').filter(o=>!o.group).map(o=>o.v);
-    if(!fs.includes('ALL')&&fs.length){const n=fs.filter(v=>fo.includes(v)).length;pe=pf?pe*n/pf:0;pf=n;}
-    let f=1;const es=S.sel.et;
-    if(!es.includes('ALL')&&es.length){f=ETS.filter(e=>es.includes(e[0])).reduce((a,e)=>a+e[1],0);etc=es.length+' selected';}
-    const t=S.sel.tags;const hw=(t.includes('hw')?.65:0)+(t.includes('ty')?.35:0);const cf=(t.includes('ch')?.6:0)+(t.includes('cm')?.28:0)+(t.includes('cl')?.12:0);
-    if(hw)f*=hw;if(cf)f*=cf;const an=S.sel.analyst;if(!an.includes('ALL')&&an.length)f*=an.length/ANALYSTS.length;
-    pe*=f;pf=Math.round(pf*Math.min(1,f*2.6));
-  }
-  return {isInt,sb,pf,pe,etc,sF:Math.ceil(pf*S.pct/100),sE:Math.ceil(pe*S.pct/100)};
+  const isInt=S.mode==='intelligent',sb=selBatches(),eligible=eligibleFolios();
+  const pe=eligible.reduce((total,item)=>total+entriesInScope(item),0);
+  const types=selectedEntryTypes();
+  const etc=types.length?types.length+' selected':'All '+ETS.length+' in-scope';
+  return {isInt,sb,eligible,pf:eligible.length,pe,etc,
+    sF:eligible.length?Math.ceil(eligible.length*S.pct/100):0,
+    sE:pe?Math.ceil(pe*S.pct/100):0};
 }
 function reviewHref(){
-  const p=new URLSearchParams();p.set('mode',S.mode);
-  const es=S.sel.et;if(S.mode==='intelligent'&&es.length&&!es.includes('ALL'))p.set('et',es.join('|'));
+  const scope=S.allocated?S.allocatedScope:null;
+  const p=new URLSearchParams();p.set('mode',scope?.mode||S.mode);
+  const es=scope?.entryTypes||[];
+  if(es.length)p.set('et',es.join('|'));
   return 'LPS_QA_Review.html?'+p.toString();
 }
-// The scope Review reads back from localStorage; nothing else carries batch/folio scope.
-function scopeRecord(){return {mode:S.mode,batches:S.sel.batch.slice(),folios:S.sel.folio.slice(),
-  entryTypes:(S.mode==='intelligent'&&!S.sel.et.includes('ALL'))?S.sel.et.slice():[],
-  analysts:S.sel.analyst.slice(),experts:S.sel.expert.slice(),sampling:S.pct,savedAt:new Date().toISOString()};}
-function saveScope(){try{localStorage.setItem(STORE_KEY,JSON.stringify(scopeRecord()));}catch(e){}}
+function scopeRecord(chosen){
+  const selectedAnalysts=S.sel.analyst.includes('ALL')||!S.sel.analyst.length?['A03']:S.sel.analyst.slice();
+  const analystByFolio={};
+  chosen.forEach((item,index)=>{analystByFolio[item.id]=selectedAnalysts[index%selectedAnalysts.length];});
+  return {id:Date.now().toString(36)+'-'+Math.random().toString(36).slice(2,8),mode:S.mode,
+    batches:[...new Set(chosen.map(item=>item.batch))],folios:chosen.map(item=>item.id),
+    folioIds:chosen.map(item=>item.id),entryTypes:selectedEntryTypes(),analysts:selectedAnalysts,
+    analystByFolio,experts:S.sel.expert.slice(),sampling:S.pct,
+    entryCount:chosen.reduce((total,item)=>total+entriesInScope(item),0),savedAt:new Date().toISOString()};
+}
+function saveScope(){if(!S.allocatedScope)return;try{localStorage.setItem(STORE_KEY,JSON.stringify(S.allocatedScope));}catch(e){}}
 function render(){
   if(!S.ready){
     document.getElementById('root').innerHTML='<div class="wrap"><div class="col-main"><section class="card sec"><h2>No ingested data</h2><span class="small muted">No <code>'+DATA_ROOT+'/index.json</code> was found, so there are no batches to allocate. Ingest a delivery first:</span><pre class="small" style="margin:0;background:#F3F5F8;border:1px solid var(--line);border-radius:6px;padding:10px">python qa_ingest.py "&lt;root folder&gt;"</pre><span class="small muted">Then serve this folder (<code>python -m http.server 8080</code>) and reload.</span></section></div></div>';
@@ -176,7 +191,6 @@ function render(){
   const c=calc();const xs=S.sel.expert;const ch=EXPERTS.filter(e=>xs.includes('ALL')||xs.includes(e[0]));const n=ch.length;
   const card=(on,v,t,d)=>'<label class="mode'+(on?' on':'')+'"><input type="radio" name="m" data-c="mode" value="'+v+'"'+(on?' checked':'')+'><span><b>'+t+'</b><span class="small muted">'+d+'</span></span></label>';
   let h='<div class="wrap"><div class="col-main">';
-  if(S.warnings)h+='<div class="note" style="background:#FFF8EC;border-color:#F3DDB8;color:#6B4400">'+S.warnings+' ingest warning'+(S.warnings===1?'':'s')+' — see <code>'+DATA_ROOT+'/warnings.json</code>.</div>';
   h+='<section class="card sec" aria-labelledby="h1m"><h2 id="h1m">QA Mode</h2><div class="modes">'+card(!c.isInt,'random','Random QA (all stratums)','Unbiased sample across every stratum in the chosen batches. Only batch and sampling % apply.')+card(c.isInt,'intelligent','Intelligent QA (critical aspects)','Target folios, entry types, review tags and analysts that carry the most risk.')+'</div></section>';
   h+='<section class="card sec" aria-labelledby="h2s"><div style="display:flex;align-items:center;gap:10px"><h2 id="h2s">Scope</h2><button type="button" class="btn-link" style="margin-left:auto" data-a="reset">Reset Filters</button></div>'+dd('batch',false);
   if(!c.isInt)h+='<div class="note"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg>Folio, entry type, review tag and analyst filters switch on with Intelligent QA.</div>';
@@ -192,7 +206,7 @@ function render(){
   if(n){h+='<div class="card scroll-x"><table class="tbl"><thead><tr><th>Expert</th><th class="num">Folios</th><th class="num">Entries</th></tr></thead><tbody>'+ch.map((e,i)=>'<tr><td>'+e[1]+'</td><td class="num">'+fmt(Math.floor(c.sF/n)+(i<c.sF%n?1:0))+'</td><td class="num muted">'+fmt(Math.floor(c.sE/n)+(i<c.sE%n?1:0))+'</td></tr>').join('')+'</tbody></table></div>';}
   if(S.err)h+='<div class="alert" role="alert">'+S.err+'</div>';
   h+='<button type="button" class="btn btn-primary" style="height:40px" data-a="allocate">Allocate '+fmt(c.sF)+' Folios</button>';
-  if(S.allocated)h+='<div class="okbox" role="status"><b style="font-weight:500;color:#0E6B49">Allocated to '+n+' LPS QA expert(s)</b><span class="small" style="color:#1F5A43">Each expert now sees their folios in the review queue.</span><a class="btn btn-outline btn-sm" style="align-self:flex-start" href="'+reviewHref()+'">Open Review Queue</a></div>';
+  if(S.allocated)h+='<div class="okbox" role="status"><b style="font-weight:500;color:#0E6B49">Allocated '+fmt(S.allocatedScope.folioIds.length)+' folio(s) to '+n+' LPS QA expert(s)</b><span class="small" style="color:#1F5A43">'+fmt(S.allocatedScope.entryCount)+' entries in scope. Mobius analyst: '+esc(S.allocatedScope.analysts.join(', '))+'.</span><a class="btn btn-outline btn-sm" style="align-self:flex-start" href="'+reviewHref()+'">Open Review Queue</a></div>';
   h+='</section></div></div>';
   const ae=document.activeElement;const aid=ae&&ae.id;
   document.getElementById('root').innerHTML=h;
@@ -200,38 +214,57 @@ function render(){
   if(aid){const el=document.getElementById(aid);if(el)el.focus();}
 }
 const root=document.getElementById('root');
-const setPct=v=>{S.pct=Math.max(1,Math.min(100,Math.round(+v||1)));S.allocated=false;render();};
+const setPct=v=>{S.pct=Math.max(1,Math.min(100,Math.round(+v||1)));S.allocated=false;S.allocatedScope=null;render();};
 root.addEventListener('click',e=>{
   const el=e.target.closest('[data-a]');
   if(!el){if(S.open&&!e.target.closest('.dd-panel')){S.open=null;render();}return;}
   const a=el.dataset.a,v=el.dataset.v;
   if(a==='open'){S.open=S.open===v?null:v;render();}
   else if(a==='close'){S.open=null;render();}
-  else if(a==='reset'){S.sel=Object.assign(DEF(),{expert:S.sel.expert});S.open=null;S.allocated=false;S.err='';render();}
+  else if(a==='reset'){S.sel=Object.assign(DEF(),{expert:S.sel.expert});S.open=null;S.allocated=false;S.allocatedScope=null;S.err='';render();}
   else if(a==='pct')setPct(v);
   else if(a==='allocate'){const c=calc();const xs=S.sel.expert;const n=EXPERTS.filter(x=>xs.includes('ALL')||xs.includes(x[0])).length;
     S.open=null;S.allocated=false;
-    if(!c.sb.length)S.err='Select at least one batch.';else if(c.sF<1)S.err='No folios match these filters. Widen the filters or raise the sampling %.';else if(!n)S.err='Choose at least one LPS QA expert to allocate to.';else{S.err='';S.allocated=true;saveScope();}
+    if(!c.sb.length)S.err='Select at least one batch.';else if(c.sF<1)S.err='No folios match these filters. Widen the filters or raise the sampling %.';else if(!n)S.err='Choose at least one LPS QA expert to allocate to.';else{
+      const pool=c.eligible.slice();
+      for(let i=pool.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[pool[i],pool[j]]=[pool[j],pool[i]];}
+      S.allocatedScope=scopeRecord(pool.slice(0,c.sF));S.err='';S.allocated=true;saveScope();
+    }
     render();}
 });
 root.addEventListener('change',e=>{const el=e.target;const c=el.dataset.c;if(!c)return;
   if(c==='tog')toggle(el.dataset.id,el.dataset.v);
-  else if(c==='mode'){S.mode=el.value;S.open=null;S.allocated=false;render();}
+  else if(c==='mode'){S.mode=el.value;S.open=null;S.allocated=false;S.allocatedScope=null;render();}
   else if(c==='pct')setPct(el.value);});
 root.addEventListener('input',e=>{if(e.target.dataset.i==='pctlive'){const n=document.getElementById('pctN');if(n)n.value=e.target.value;}});
-// Leaving for Review carries the scope with it, so Review opens on exactly what was allocated.
-document.getElementById('goReview').addEventListener('click',saveScope);
-
 // Batches, folios and entry types come from qa_data/index.json (written by qa_ingest.py).
+async function enrichFolioCounts(item){
+  if(item.entryTypeCounts&&Array.isArray(item.entryTypes))return item;
+  try{
+    const response=await fetch(item.json,{cache:'no-store'});
+    if(!response.ok)return item;
+    const folio=await response.json(),counts={};
+    (folio.entries||[]).forEach(entry=>{
+      const type=String(entry.type||'').trim();
+      if(type)counts[type]=(counts[type]||0)+1;
+    });
+    item.entryTypes=Object.keys(counts);
+    item.entryTypeCounts=counts;
+  }catch(error){}
+  return item;
+}
 async function boot(){
   try{
     const res=await fetch(DATA_ROOT+'/index.json',{cache:'no-store'});
     if(!res.ok)throw new Error('HTTP '+res.status);
     const index=await res.json();
-    BATCHES=(index.batches||[]).map(b=>({v:b.name,folios:b.folios,entries:b.entries}));
-    FOLIOS={};(index.batches||[]).forEach(b=>{FOLIOS[b.name]=(b.items||[]).map(it=>it.id);});
+    await Promise.all((index.batches||[]).flatMap(batch=>(batch.items||[]).map(enrichFolioCounts)));
+    BATCHES=(index.batches||[]).map(b=>({v:b.name,folios:b.folios,entries:b.entries,items:b.items||[]}));
+    FOLIOS={};ALL_FOLIOS=[];(index.batches||[]).forEach(b=>{
+      FOLIOS[b.name]=(b.items||[]).map(it=>it.id);
+      (b.items||[]).forEach(it=>ALL_FOLIOS.push(Object.assign({batch:b.name},it)));
+    });
     ETS=(index.entryTypes||[]).map(e=>[e.name,e.weight]);
-    try{const w=await (await fetch(DATA_ROOT+'/warnings.json',{cache:'no-store'})).json();S.warnings=w.count||0;}catch(e){}
     S.ready=BATCHES.length>0;
   }catch(err){S.ready=false;}
   render();

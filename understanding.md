@@ -276,14 +276,14 @@ From `land_records_digitization-main` (see `folio_capture/export.py`, `folio_cap
 
 | Topic | Decision |
 |---|---|
-| **Per-field confidence** | The pipeline does **not** produce one, and none will be invented. The UI shows only what it already has — the field's `basis` (`observed` / `human` / `derived` / `default`) — in place of the `High / Medium / Low` pill. The Allocation "AI confidence flag" tag is dropped or remapped to `basis`. |
-| **Entry-type taxonomy** | Taken from the actual output: **6** types (Transfer of Part, Description of Land, Covenants, Easements, Leasehold Yearly Rent, Leasehold Particulars). QA's 12-type list is replaced by these 6 — so the extra types QA shows (Sporting Rights, Lease, Appurtenance, Ownership, Burden, Charge) are out of scope. |
+| **Field flags and labels** | Review displays `Field Names Per LPS` matched by `TABLE_NAME` and internal `FIELD_NAME`. Its High/Med/Low flag is a conservative mapping from extraction reason codes, not a calibrated probability; `basis` remains available in ingested data. |
+| **Entry-type taxonomy** | Read from the actual delivery, including inactive entries, and used consistently for allocation counts and Review focus. |
 | **County codes** | Use exactly what the pipeline provides — all **six** counties, including **Antrim**. QA's 5-prefix list is extended to cover all six. |
 | **Batch folder contents** | A **root folder** holds one folder per batch; **each batch folder holds one or more ZIPs**, and the folio artefacts are inside those ZIPs (§3). All ZIPs in a batch are unioned before grouping. |
 | **Artefact-family grouping** | Follows the producer's naming convention (§3.3): one folio = files sharing a base name, with `_N` evaluated on that shared base. |
-| **QA verdicts** | **Not persisted** for now — session-only (in-memory + `localStorage`). No QA history or audit trail is required at this stage. |
+| **QA verdicts** | Saved in this browser's `localStorage` with field corrections, notes, and folio submission state. This is not shared across reviewers or devices and is not a server audit trail. |
 | **`LPS_QA_Builder.html`** | Out of scope and ignored; all references removed from the pages and from this document. Ingestion still enters through the `/*IMPORTED_START*/ … /*IMPORTED_END*/` markers. |
-| **Raw OCR text** | Not needed and not requested as an export. The Review page's text view is titled "Captured text" and renders **captured entries and values**, which come from the extracted output — see §5.6. |
+| **Raw OCR text** | Not needed and not requested as an export. Review defaults to the source document image with extracted-entry and field boxes; its OCR view renders captured entries and values — see §5.6. |
 
 ### 5.4 Relationship to producer-side duplicate handling
 
@@ -382,16 +382,13 @@ Shapes actually used by the pages today (names as they appear in the code):
 
 **Batch / allocation**
 ```
-Batch  : { v, folios, entries }
-Scope  : { batch:[], folio:[], et:[], tags:[], analyst:[], expert:[] }
+Batch  : { v, folios, entries, items:[{ id, entryTypes, entryTypeCounts, inactiveEntries }] }
+Scope  : { folioIds:[], entryTypes:[], analystByFolio:{}, experts:[], sampling }
 mode   : 'random' | 'intelligent'
 pct    : 1..100
 ```
-Entry types carry a share weight (e.g. `Description of Land` 0.214) used to estimate sample size in
-Intelligent mode — with the taxonomy cut to the 6 captured types (§5.3), these weights are recalculated
-over 6 types rather than 12. Review tags group as: script (Handwritten / Typed), AI confidence flag
-(**shown as `basis`, not High / Medium / Low** — §5.3), include notes (Full text notes / Marginal notes).
-Per-field `conf` in the entry shape below is therefore populated from `basis`.
+Allocation uses actual per-folio counts for the selected entry types; inactive entries remain in scope.
+Older indexes without those counts are enriched from their folio JSON at page load.
 
 **Folio (Review page)**
 ```
@@ -399,12 +396,13 @@ F : { id, file, county, batch, analyst, kind:'mock'|'image',
       pages : [ {head} | {img} ],
       E     : [ Entry ] }
 Entry : { type, page, order, box, heading?, margin?, text?,
-          fields : [ { label, value, conf, box, onImage } ],
-          n, no, sib, inactive?, note? }
+          fields : [ { label, value, flag, box, onImage } ],
+          n, no, sib, inactive?, cancellationStatus? }
 ```
 - Entries are sorted by `page`, then `order`.
 - Entries sharing a page/order (one paragraph captured as several types) are numbered `4a`, `4b`, `4c`.
-- Per-folio UI state: `{ page, cur, status:[Pending|Accepted|Rejected], listOpen }`.
+- Inactive entries have no extracted fields and remain reviewable as not captured.
+- Per-folio UI state and submission progress are saved in browser-local storage.
 
 ---
 
@@ -412,15 +410,15 @@ Entry : { type, page, order, box, heading?, margin?, text?,
 
 **Allocation → Review → Analytics**
 
-1. **Mode.** Random QA (batch + sampling % only) or Intelligent QA (folio, entry type, review tag and
-   analyst filters all apply and compound into the estimated sample).
+1. **Mode.** Random QA samples eligible folios; Intelligent QA uses selected entry types to calculate
+   eligible folios and exact entry counts.
 2. **Sampling %.** Default 10, presets 5/10/25/50/100; the copy states LPS starts at 100% and lowers it
    only on delegated authority.
-3. **Allocation.** Divide sampled folios/entries evenly across selected QA experts; empty result or no
-   expert selected is an error.
-4. **Review.** Per entry: `Accept Entry` / `Reject Entry`. **A reject requires at least one field-level QA
-   note.** Field values are editable and a correction is shown alongside the original. Query (to Mobius QC)
-   and Escalate Folio (to a senior analyst / LPS lead) both open a modal with a reason.
+3. **Allocation.** Save exact selected folio IDs and entry-type focus, and divide the sample across selected
+   QA experts; empty result or no expert selected is an error.
+4. **Review.** Per entry: `Accept Entry` / `Reject Entry`. Active-entry rejection requires a field-level QA
+   note; inactive entries can be resolved without fields. Field values and notes persist locally. `Submit Folio`
+   stays disabled until all in-scope entries are resolved, then advances through the queue.
 5. **Sampling-eligibility signals (Analytics).** Accepted at **≥98%**; Accepted w/ Feedback **96–97.9%**;
    Rejected (sent to rework) **<96%**; entry types at **≥99%** are flagged "Sampling Eligible".
 6. **Intelligent-only reporting.** Folio-wise detail, expert completion, per-analyst accuracy and stratum,
@@ -435,8 +433,8 @@ can be implemented as written. Nothing here prevents a delivered batch from inge
 
 | Topic | In force |
 |---|---|
-| Per-field confidence | UI shows the field's `basis` (`observed` / `human` / `derived` / `default`); no `High/Medium/Low` is invented. |
-| Entry-type taxonomy | The 6 captured types only. |
+| Field labels and flags | Uses workbook `Field Names Per LPS` labels in table context and reason-code-derived High/Med/Low flags. |
+| Entry-type taxonomy | Uses types in the ingested delivery, with inactive entries included. |
 | County codes | All 6 from the pipeline, including Antrim. |
 | Delivery structure | Root folder → one folder per batch → one or more ZIPs per batch; all ZIPs unioned. |
 | Batch name | The batch folder's name, verbatim. |
@@ -447,7 +445,7 @@ can be implemented as written. Nothing here prevents a delivered batch from inge
 | Problem handling | Best effort — skip malformed content with a warning; never reject a batch that has usable files. |
 | Fallback source document | The producer supplies `source_id`; page images can be resolved from it (§5.5). |
 | Raw OCR text | Not needed — the text view renders captured values. |
-| QA verdicts | Not persisted; session-only. |
+| QA verdicts | Persisted in browser-local storage for the current allocation; not shared across users/devices. |
 | `LPS_QA_Builder.html` | Ignored; references removed. |
 
 **Left for later (not needed for the demo)**
@@ -473,9 +471,9 @@ can be implemented as written. Nothing here prevents a delivered batch from inge
 - A folio's artefacts (source document, values, coordinate CSV) share one base name, following the
   producer's naming convention, so they group without a manifest — and the latest-suffix rule selects the
   whole folio together.
-- **QA verdicts are not persisted** — the QA session is the only record for now.
+- QA verdicts, edits, notes, and folio submissions persist in browser-local storage; shared/server-side audit history remains out of scope.
 - The producer tool remains the system of record for extraction and for the original source documents.
-- For image folios, the "Captured text" view (not a page image) is what QA displays.
+- Review displays source page images with entry and field geometry when available; the OCR view shows captured values.
 
 **Not in scope for this understanding**
 - Implementation of ingestion/back-end, authentication, persistence, or deployment.
@@ -505,22 +503,30 @@ more ZIPs inside each batch folder. Relative paths are resolved from the project
 also supported. You can still pass the root directly (`python qa_ingest.py "<root folder>"`), which
 overrides `.env`. The shell environment variable `BATCH_ROOT_FOLDER`, when set, takes precedence over `.env`.
 
-Optional flags: `--out <dir>` (where the data is written) and `--public <prefix>` (the URL prefix baked into
-the folio JSON; defaults to the `--out` folder name, which is what §3 above assumes).
+The ingester also reads `23548 Output.xlsx` for display labels. It searches the sibling
+`land_records_digitization` / `land_records_digitization-main` project folders; set
+`FIELD_NAMES_WORKBOOK` in `.env` or pass `--field-names-workbook <path>` when the workbook is elsewhere.
+`Field Names Per LPS` is selected by `TABLE_NAME` and `FIELD_NAME`, so the displayed label can vary by table
+without changing the internal field key used for values or geometry. The UI's High/Med/Low field flag is
+derived from extraction reason codes: no reasons → High, structural/evidence/validation reasons → Low, and
+other or unknown reasons → Med. These are review flags, not calibrated probabilities.
+
+Optional flags: `--out <dir>` (where the data is written), `--public <prefix>` (the URL prefix baked into
+the folio JSON; defaults to the `--out` folder name), and `--field-names-workbook <path>`.
 
 The run installs no state anywhere else. `qa_ingest.py` deletes and rewrites `qa_data/` on every run, so a
 re-delivery is just a re-run.
 
-**Reset.** Delete `qa_data/` to clear the ingested data, and clear the `lpsQA.allocation` key in
-`localStorage` (browser devtools, or "Reset Filters" in Allocation followed by re-allocating) to clear the
-allocated scope. Nothing else is retained: QA verdicts are session-only (§5.3).
+**Reset.** Re-run ingestion to replace `qa_data/`. Allocation settings are stored in
+`localStorage.lpsQA.allocation`; per-entry verdicts, edits, notes, and folio submissions are saved in this
+browser under `localStorage.lpsQA.review.v1`. They are not shared between reviewers or devices.
 
 **What each page reads**
 
 | Page | Source |
 |---|---|
-| `LPS_QA_Allocation.html` | `qa_data/index.json` — batches, folios, the 6 entry types with their weights, and the ingest warning count |
-| `LPS_QA_Review.html` | `qa_data/index.json` + one `batches/<batch>/<folio>.json` per folio, filtered to the allocated scope in `localStorage.lpsQA.allocation` |
+| `LPS_QA_Allocation.html` | `qa_data/index.json` — batches, folios, entry types and per-folio counts, including inactive entries |
+| `LPS_QA_Review.html` | `qa_data/index.json` + one `batches/<batch>/<folio>.json` per folio, filtered to the exact allocated folio IDs and entry types in `localStorage.lpsQA.allocation` |
 | `LPS_QA_Analytics.html` | nothing — fixed sample data (§7) |
 
 If `qa_data/` is absent the Review page falls back to the built-in sample folio and both pages say so,
