@@ -1,0 +1,15 @@
+# Watch the QA delivery root and run lpsqa-ingest.service on any change.
+# See lpsqa-ingest.service for install notes.
+
+[Unit]
+Description=Watch sample_delivery/ for new QA pushes
+
+[Path]
+PathChanged=/opt/lpsdemointelligentqa/sample_delivery
+Unit=lpsqa-ingest.service
+# Collapse the burst of events a single push produces into one run.
+TriggerLimitIntervalSec=10
+TriggerLimitBurst=5
+
+[Install]
+WantedBy=multi-user.target

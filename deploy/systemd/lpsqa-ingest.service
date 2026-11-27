@@ -1,0 +1,24 @@
+# Re-ingest LPS QA deliveries into qa_data/ whenever sample_delivery/ changes.
+#
+# Install (on the VM):
+#   sudo cp lpsqa-ingest.service lpsqa-ingest.path /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable --now lpsqa-ingest.path
+#
+# Triggered by lpsqa-ingest.path. Assumes:
+#   - the project is checked out at /opt/lpsdemointelligentqa
+#   - its virtualenv is .venv, holding qa_ingest.py's deps (pymupdf, openpyxl, pillow)
+# Adjust the paths and User= if your layout differs.
+
+[Unit]
+Description=Re-ingest LPS QA deliveries into qa_data/
+
+[Service]
+Type=oneshot
+User=lpsdigitization
+Group=lpsdigitization
+WorkingDirectory=/opt/lpsdemointelligentqa
+# PathChanged fires when the Batch_<id>/ folder is created, which is before
+# delivery.zip has finished being written. Wait so the ingester sees a complete zip.
+ExecStartPre=/bin/sleep 8
+ExecStart=/opt/lpsdemointelligentqa/.venv/bin/python /opt/lpsdemointelligentqa/qa_ingest.py
