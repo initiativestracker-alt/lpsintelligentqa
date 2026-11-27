@@ -1,0 +1,40 @@
+{
+ "count": 7,
+ "items": [
+  {
+   "level": "warning",
+   "batch": "-",
+   "message": "1 loose file(s) in the root were ignored: readme.txt"
+  },
+  {
+   "level": "warning",
+   "batch": "23548_Q3",
+   "message": "23548_p2.jpg superseded by 23548_p1.jpg"
+  },
+  {
+   "level": "warning",
+   "batch": "23548_Q3",
+   "message": "manifest: no extracted output found; folio skipped"
+  },
+  {
+   "level": "warning",
+   "batch": "Batch_7302_Rerun",
+   "message": "2 deliveries for 'delivery' (delivery.zip, delivery_1.zip); position at file level"
+  },
+  {
+   "level": "warning",
+   "batch": "Batch_7302_Rerun",
+   "message": "7302-coordinates.csv superseded by 7302_1-coordinates.csv"
+  },
+  {
+   "level": "warning",
+   "batch": "Batch_7302_Rerun",
+   "message": "7302.csv superseded by 7302_1.csv"
+  },
+  {
+   "level": "warning",
+   "batch": "Batch_NoSource",
+   "message": "9001: no source document in the delivery; page images are placeholders (hasSource=false)"
+  }
+ ]
+}

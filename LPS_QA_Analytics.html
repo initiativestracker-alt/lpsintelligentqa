@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>XDAS – Mobius Analytics: Quality Assurance</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--green:#12996A;--green-d:#0E7C55;--blue:#2563A8;--blue-d:#1B4C82;--hdr:#EEF4FB;--line:#E3E8EE;--line2:#EEF1F4;--text:#1F2937;--muted:#5B6472;--bg:#F4F6F9;--ok:#1E8A5C;--bad:#C8322D;--amber:#D97A1E;color-scheme:light}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg)}
+body{font-family:Poppins,'Segoe UI',Arial,sans-serif;color:var(--text);font-size:13px;line-height:1.45}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--blue)}a:hover{color:var(--blue-d)}
+:focus-visible{outline:2px solid var(--blue);outline-offset:2px}
+.app{display:flex;min-height:100vh}
+main{flex:1;min-width:0;display:flex;flex-direction:column}
+.top{background:#fff;border-bottom:1px solid var(--line);padding:12px 22px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.crumb{font-size:12px;color:var(--muted)}
+h1{margin:0;font-size:19px;font-weight:500}
+h2{margin:0;font-size:14px;font-weight:600}
+.card{background:#fff;border:1px solid var(--line);border-radius:8px}
+.muted{color:var(--muted)}
+.small{font-size:12px}.xs{font-size:11px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:34px;padding:0 14px;border-radius:6px;border:1px solid transparent;font-size:13px;font-weight:500;cursor:pointer;white-space:nowrap;text-decoration:none;background:#fff}
+.btn-sm{height:30px;padding:0 10px;font-size:12px}
+.btn-primary{background:var(--green);border-color:var(--green);color:#fff}.btn-primary:hover{background:var(--green-d);color:#fff}
+.btn-ok{background:var(--ok);border-color:var(--ok);color:#fff}
+.btn-bad{background:var(--bad);border-color:var(--bad);color:#fff}
+.btn-quiet{background:#fff;border-color:#D5DCE4;color:#4B5563}.btn-quiet:hover{border-color:#AEB7C2}
+.btn-outline{background:#fff;border-color:var(--green);color:var(--green-d)}
+.btn-blue{background:#F3F8FE;border-color:#9DBBE3;color:var(--blue-d)}
+.btn-orange{background:#FFF6EE;border-color:#F2B37A;color:#9A4A00}
+.btn:disabled{opacity:.45;cursor:not-allowed}
+.btn-link{background:none;border:0;color:var(--blue);cursor:pointer;padding:4px;font-size:12px}
+.pill{display:inline-block;font-size:11px;font-weight:500;border-radius:4px;padding:2px 8px;white-space:nowrap}
+.p-ok{background:#E3F5EC;color:#166F4B}.p-warn{background:#FFF2D6;color:#7A4F00}.p-bad{background:#FDE7E5;color:#B42318}.p-info{background:#EAF2FD;color:#1B4C82}.p-grey{background:#EEF1F4;color:#4B5563}
+.s-pending{background:#6B7380;color:#fff}.s-accepted{background:var(--ok);color:#fff}.s-rejected{background:var(--bad);color:#fff}
+.tbl{width:100%;border-collapse:collapse;font-size:12px}
+.tbl th{background:var(--hdr);color:var(--blue);font-weight:500;text-align:left;padding:8px 12px;white-space:nowrap}
+.tbl td{padding:8px 12px;border-top:1px solid var(--line2)}
+.num{text-align:right}
+.scroll-x{overflow-x:auto}
+.seg{display:flex;background:#EEF1F4;border-radius:6px;padding:3px}
+.seg button{height:28px;padding:0 12px;border:0;border-radius:5px;background:transparent;cursor:pointer;font-size:12px;color:#374151}
+.seg button[aria-pressed="true"],.seg button[aria-selected="true"]{background:var(--green);color:#fff;font-weight:500}
+.track{height:6px;background:#EEF1F4;border-radius:3px;overflow:hidden;flex:1}
+.track>div{height:100%;border-radius:3px}
+@media (max-width:760px){.top{padding:12px 14px}}
+
+.filters{margin-left:auto;display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px}
+.filters label{display:flex;flex-direction:column;gap:3px;font-size:11px;color:var(--muted)}
+.filters select{height:32px;border:1px solid #CBD3DC;border-radius:6px;padding:0 8px;font-size:12px;background:#fff;color:var(--text)}
+.modebar{display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:10px 22px;background:#fff;border-bottom:1px solid var(--line)}
+.modebar .seg button{height:32px;padding:0 18px;font-size:13px}
+.body{padding:18px 22px 40px;display:flex;flex-direction:column;gap:16px}
+.row{display:flex;flex-wrap:wrap;gap:16px}
+.pad{padding:14px 16px;display:flex;flex-direction:column;gap:12px}
+.head{padding:12px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;align-items:baseline;gap:8px}
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+.kpi{padding:12px 14px;display:flex;flex-direction:column;gap:2px}
+.kpi .v{font-size:22px;font-weight:600;line-height:1.2}
+.stack{display:flex;height:14px;border-radius:7px;overflow:hidden;background:#EEF1F4}
+.leg{display:flex;align-items:center;gap:8px;font-size:12px}
+.leg i{width:10px;height:10px;border-radius:2px;flex:0 0 10px}
+.leg b{margin-left:auto;font-weight:600}
+.leg em{font-style:normal;width:48px;text-align:right;color:var(--muted)}
+.weeks{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:12px;padding:0 4px}
+.wbars{align-items:end;height:190px;border-bottom:1px solid #DDE3EA}
+.wbars>div{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:4px;height:100%}
+.wbars .b{width:100%;max-width:46px;border-radius:4px 4px 0 0;background:#8FD0B4}
+.wbars>div:last-child .b{background:var(--green)}
+.fchips{display:flex;flex-wrap:wrap;gap:6px}
+.fchip{height:28px;padding:0 10px;border-radius:999px;border:1px solid #CBD3DC;background:#fff;cursor:pointer;font-size:11px}
+.fchip[aria-pressed="true"]{background:var(--green);border-color:var(--green);color:#fff}
+.lock{display:flex;align-items:center;gap:10px;padding:14px 16px;border:1px dashed #C9D8EC;border-radius:8px;background:#F7FAFD;font-size:12px;color:var(--blue-d)}
+@media (max-width:900px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>
+</head>
+<body>
+<div class="app">
+<main>
+<header class="top">
+<div><div class="crumb">Dashboard / LPS Folio Digitization</div><h1>Mobius Analytics: Quality Assurance</h1></div>
+<div class="filters">
+<label>Period<select><option>Last 8 weeks</option><option>Last 30 days</option><option>Programme to date</option></select></label>
+<label>Batch<select><option>All batches (8)</option><option>B-230 to B-233</option><option>B-234 to B-237</option></select></label>
+<a class="btn btn-quiet btn-sm" href="LPS_QA_Allocation.html">Go to Allocation</a>
+<button type="button" class="btn btn-outline btn-sm">Export Report</button>
+</div>
+</header>
+<div class="modebar">
+<span class="small muted">QA mode</span>
+<div class="seg" role="tablist" aria-label="QA mode" id="tabs"></div>
+<span class="xs muted" id="modeNote"></span>
+</div>
+<div class="modebar" style="background:#FFF8EC;border-color:#F3DDB8;color:#6B4400">
+<span class="small">Illustrative sample data. QA verdicts are not persisted in this build, so these figures are not derived from your review session. <a href="LPS_QA_Allocation.html">Allocation</a> and <a href="LPS_QA_Review.html">Review</a> operate on your ingested delivery.</span>
+</div>
+<div class="body" id="root"></div>
+</main>
+</div>
+<script>
+const S={mode:'random',filter:'All',q:''};
+const fmt=n=>Math.round(n).toLocaleString('en-GB');
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const G='#1E8A5C',G2='#62B88F',B='#2F6FD6',O='#D97A1E',R='#C8322D',GR='#9AA3AD';
+const bar=(p,c)=>'<div class="track"><div style="width:'+Math.max(0,Math.min(100,p))+'%;background:'+c+'"></div></div>';
+const D={
+ random:{
+  kpis:[['Entries QA\u2019d','3,440','+452 this week',1],['Fields checked','24,080','about 7 fields per entry',0],['Capture accuracy','99.2%','+0.1 pts vs last week',1],['First-pass folio acceptance','98.7%','693 of 702 completed folios',0],['Average QA time per folio','10.6 min','-0.5 min vs last week',1],['Current LPS sampling level','100%','Pilot baseline, set by LPS',0]],
+  status:[['QA completed',702,G],['In progress (WIP)',128,B],['Pending, not started',202,GR]],
+  batches:[['B-230',125,612,99.1,'02 Oct'],['B-231',118,578,98.7,'09 Oct'],['B-232',132,647,97.2,'17 Oct'],['B-233',109,534,99.4,'23 Oct'],['B-234',125,613,98.4,'31 Oct'],['B-235',124,608,96.6,'07 Nov'],['B-236',131,642,98.9,'13 Nov'],['B-237',54,265,null,'']],
+  outcomes:[['Accepted on first pass',693,G],['Accepted after rework',7,G2],['In rework',2,O]],
+  cycles:'8 once, 1 twice',queries:'6 open, 21 resolved',esc:'2 open, 4 closed',
+  weeks:[[56,98.6],[68,98.8],[77,98.9],[83,99.0],[90,99.1],[99,99.2],[108,99.3],[121,99.3]]
+ },
+ intelligent:{
+  kpis:[['Entries QA\u2019d','2,617','+361 this week',1],['Fields checked','18,319','about 7 fields per entry',0],['Capture accuracy','99.2%','+0.2 pts vs last week',1],['First-pass folio acceptance','98.7%','527 of 534 completed folios',0],['Average QA time per folio','12.3 min','-0.6 min vs last week',1],['Current LPS sampling level','100%','Pilot baseline, set by LPS',0]],
+  status:[['QA completed',534,G],['In progress (WIP)',96,B],['Pending, not started',180,GR]],
+  batches:[['B-230',88,470,98.2,'03 Oct'],['B-231',92,488,99.0,'10 Oct'],['B-232',101,540,96.8,'18 Oct'],['B-233',79,402,99.3,'24 Oct'],['B-234',96,515,97.5,'01 Nov'],['B-235',90,482,96.3,'08 Nov'],['B-236',84,446,98.6,'14 Nov'],['B-237',30,160,null,'']],
+  outcomes:[['Accepted on first pass',527,G],['Accepted after rework',5,G2],['In rework',2,O]],
+  cycles:'6 once, 1 twice',queries:'9 open, 30 resolved',esc:'4 open, 7 closed',
+  weeks:[[40,98.6],[52,98.7],[58,98.9],[64,99.0],[70,99.1],[76,99.2],[82,99.3],[92,99.4]]
+ }
+};
+const FOL=[
+ ['DN-35846','B-234',6,5,1,98.7,'Expert 1','A03',1,'In rework','24 Nov 09:42'],
+ ['DN-35847','B-234',4,4,0,100,'Expert 2','A01',0,'Accepted','24 Nov 09:15'],
+ ['AM-10422','B-234',7,7,0,99.6,'Expert 1','A05',1,'Accepted','23 Nov 16:20'],
+ ['TY-36091','B-235',5,4,1,98.6,'Expert 3','A05',0,'In rework','23 Nov 15:02'],
+ ['FE-36128','B-235',3,0,0,null,'Expert 4','A02',0,'In progress','24 Nov 10:05'],
+ ['LY-36302','B-236',8,0,0,null,'Expert 5','A06',0,'In progress','24 Nov 08:51'],
+ ['DN-36339','B-236',5,5,0,99.8,'Expert 2','A04',0,'Accepted','22 Nov 14:37'],
+ ['AM-36513','B-237',6,0,0,null,'Expert 3','A07',0,'Pending','Allocated 21 Nov'],
+ ['TY-36550','B-237',4,0,0,null,'Expert 4','A08',0,'Pending','Allocated 21 Nov'],
+ ['FE-36724','B-236',5,5,0,99.3,'Expert 5','A03',0,'Accepted','20 Nov 11:12']];
+const EXP=[['LPS QA Expert 1',180,120,20,40,11.9,5],['LPS QA Expert 2',170,112,18,40,12.6,4],['LPS QA Expert 3',160,104,20,36,12.8,5],['LPS QA Expert 4',140,88,18,34,11.5,3],['LPS QA Expert 5',160,110,20,30,12.4,4]];
+const ANA=[['A01',352,99.6,2,'Wrong field value','A',0.1],['A02',341,99.4,2,'Date or format','A',0.1],['A03',320,98.7,4,'Wrong entry type','B',-0.2],['A04',335,99.5,1,'Missing field','A',0.2],['A05',318,98.6,5,'Active/inactive misread','B',0.3],['A06',322,99.1,3,'Wrong field value','A',0],['A07',310,99.3,2,'Missing field','A',0.1],['A08',319,98.9,2,'Date or format','B',-0.1]];
+const ETS=[['Sporting Rights / Exceptions and Reservations',318,99.6],['Transfer of Part',412,99.4],['Ownership',196,99.1],['Lease',240,98.9],['Leasehold Particulars',130,98.8],['Appurtenance',188,98.7],['Description of Land',496,98.6],['Easement',171,98.6]];
+const ERR=[['Wrong field value',9],['Missing field',4],['Wrong entry type',3],['Active/inactive misread',3],['Date or format',2]];
+const pillFor=s=>({'Accepted':'p-ok','Accepted w/ Feedback':'p-warn','Rejected (Sent to rework)':'p-bad','In QA':'p-info','In rework':'p-warn','In progress':'p-info','Pending':'p-grey'}[s]);
+function legend(list,total){return list.map(x=>'<div class="leg"><i style="background:'+x[2]+'"></i><span>'+x[0]+'</span><b>'+fmt(x[1])+'</b><em>'+(x[1]/total*100).toFixed(1)+'%</em></div>').join('');}
+function stack(list,total,label){return '<div class="stack" role="img" aria-label="'+label+'">'+list.map(x=>'<span style="width:'+(x[1]/total*100)+'%;background:'+x[2]+'"></span>').join('')+'</div>';}
+function render(){
+  const isInt=S.mode==='intelligent';const d=D[S.mode];
+  document.getElementById('tabs').innerHTML=[['random','Random QA'],['intelligent','Intelligent QA']].map(t=>'<button type="button" role="tab" data-a="mode" data-v="'+t[0]+'" aria-selected="'+(S.mode===t[0])+'">'+t[1]+'</button>').join('');
+  document.getElementById('modeNote').textContent=isInt?'Showing Intelligent QA, including folio, expert, analyst and entry type breakdowns.':'Showing Random QA batch, folio and weekly summaries.';
+  const tot=d.status.reduce((a,x)=>a+x[1],0);const done=d.status[0][1];
+  let h='<div class="row"><section style="flex:2 1 620px;min-width:0;display:flex;flex-direction:column;gap:10px" aria-labelledby="k"><h2 id="k">QA Roll-up</h2><div class="kpis">'+d.kpis.map(k=>'<div class="card kpi"><span class="small muted">'+k[0]+'</span><span class="v">'+k[1]+'</span><span class="xs" style="color:'+(k[3]?'#0E7C55':'var(--muted)')+'">'+k[2]+'</span></div>').join('')+'</div></section>';
+  h+='<section class="card pad" style="flex:1 1 320px;min-width:0;align-self:flex-end" aria-labelledby="st"><div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px"><h2 id="st">Folio QA Status</h2><span class="small muted">'+fmt(tot)+' folios allocated</span></div>'+stack(d.status,tot,'Folio QA status split')+legend(d.status,tot)+'</section></div>';
+  // batch
+  const cnt={'Accepted':0,'Accepted w/ Feedback':0,'Rejected (Sent to rework)':0};let sum=0,n=0;
+  const rows=d.batches.map(r=>{const f=r[2]*7;let o='In QA',c=B;if(r[3]!==null){n++;sum+=r[3];if(r[3]>=98){o='Accepted';c=G;}else if(r[3]>=96){o='Accepted w/ Feedback';c=O;}else{o='Rejected (Sent to rework)';c=R;}cnt[o]++;}
+    return '<tr><td style="font-weight:500">'+r[0]+'</td><td class="num">'+fmt(r[1])+'</td><td class="num">'+fmt(r[2])+'</td><td class="num">'+fmt(f)+'</td><td class="num">'+(r[3]===null?'–':fmt(f*(100-r[3])/100))+'</td><td style="min-width:170px"><div style="display:flex;align-items:center;gap:8px">'+bar(r[3]===null?0:(r[3]-90)*10,c)+'<span style="width:44px;text-align:right;font-weight:500">'+(r[3]===null?'–':r[3].toFixed(1)+'%')+'</span></div></td><td><span class="pill '+pillFor(o)+'">'+o+'</span></td><td class="muted">'+(o==='In QA'?'Awaiting':r[4])+'</td></tr>';}).join('');
+  h+='<section class="card" aria-labelledby="bq"><div class="head"><h2 id="bq">Batch-level QA Score</h2><span class="small muted">'+(isInt?'Intelligent QA':'Random QA')+'</span><span class="xs muted" style="margin-left:auto">Accepted at 98% or above; Accepted w/ Feedback 96% to 97.9%; Rejected (sent to rework) below 96%</span></div><div style="display:flex;flex-wrap:wrap">';
+  h+='<div style="flex:1 1 250px;padding:14px 16px;display:flex;flex-direction:column;gap:12px;border-right:1px solid var(--line2)"><span class="small muted">Batch-level summary, '+n+' batches signed off</span>'+[['Accepted',G],['Accepted w/ Feedback',O],['Rejected (Sent to rework)',R]].map(x=>{const p=n?cnt[x[0]]/n*100:0;return '<div style="display:flex;flex-direction:column;gap:4px"><div style="display:flex;align-items:baseline;gap:6px;font-size:12px"><span>'+x[0]+'</span><span style="margin-left:auto;font-size:17px;font-weight:600">'+Math.round(p)+'%</span><span class="muted">('+cnt[x[0]]+')</span></div><div style="display:flex">'+bar(p,x[1])+'</div></div>';}).join('')+'<span class="small muted" style="border-top:1px solid var(--line2);padding-top:10px">Average batch QA score <b style="color:var(--text)">'+(sum/n).toFixed(1)+'%</b></span></div>';
+  h+='<div class="scroll-x" style="flex:3 1 620px;min-width:0"><table class="tbl" style="min-width:740px"><thead><tr><th>Batch</th><th class="num">Folios Sampled</th><th class="num">Entries Checked</th><th class="num">Fields Checked</th><th class="num">Field Errors</th><th>QA Score</th><th>Outcome</th><th>LPS Sign-off</th></tr></thead><tbody>'+rows+'</tbody></table></div></div></section>';
+  // outcomes + weekly
+  const oc=d.outcomes;const ot=oc.reduce((a,x)=>a+x[1],0);
+  h+='<div class="row"><section class="card pad" style="flex:1 1 360px;min-width:0" aria-labelledby="fo"><div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px"><h2 id="fo">Folio Outcomes</h2><span class="small muted">of '+fmt(ot)+' completed folios</span></div>'+stack(oc,ot,'Folio outcome split')+legend(oc,ot);
+  h+='<div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;border-top:1px solid var(--line2);padding-top:12px"><div><div class="xs muted">Rework cycles</div><div class="small">'+d.cycles+'</div></div><div><div class="xs muted">Queries</div><div class="small">'+d.queries+'</div></div><div><div class="xs muted">Escalations</div><div class="small">'+d.esc+'</div></div></div></section>';
+  const mx=Math.max(...d.weeks.map(w=>w[0]));
+  h+='<section class="card pad" style="flex:2 1 540px;min-width:0" aria-labelledby="wk"><div style="display:flex;flex-wrap:wrap;align-items:baseline;gap:8px"><h2 id="wk">Weekly QA Throughput and Accuracy</h2><span class="small muted">Folios completing LPS QA each week, with that week\u2019s capture accuracy</span></div>';
+  h+='<div class="weeks wbars" role="img" aria-label="Folios QA\u2019d per week rising from '+d.weeks[0][0]+' to '+d.weeks[7][0]+'">'+d.weeks.map(w=>'<div><span class="xs" style="font-weight:600">'+w[0]+'</span><div class="b" style="height:'+Math.round(w[0]/mx*150)+'px"></div></div>').join('')+'</div>';
+  h+='<div class="weeks">'+d.weeks.map((w,i)=>'<div style="display:flex;flex-direction:column;align-items:center"><span class="xs muted">Wk '+(i+1)+'</span><span class="xs" style="font-weight:500;color:#0E7C55">'+w[1].toFixed(1)+'%</span></div>').join('')+'</div></section></div>';
+  if(!isInt){
+    h+='<div class="lock">Folio-wise detail, LPS QA expert completion, Mobius analyst capture accuracy, entry type acceptance and error categories are reported for Intelligent QA. <button type="button" class="btn btn-blue btn-sm" style="margin-left:auto" data-a="mode" data-v="intelligent">View Intelligent QA</button></div>';
+  } else {
+    // folio-wise
+    const q=S.q.trim().toUpperCase();
+    const fr=FOL.filter(r=>(S.filter==='All'||r[9]===S.filter)&&(!q||r[0].includes(q)));
+    const chips=[['All','810'],['Accepted','532'],['In rework','2'],['In progress','96'],['Pending','180']];
+    h+='<section class="card" aria-labelledby="fw"><div class="head" style="align-items:center"><h2 id="fw">Folio-wise QA Detail</h2><div class="fchips" role="group" aria-label="Filter by status">'+chips.map(c=>'<button type="button" class="fchip" data-a="filter" data-v="'+c[0]+'" aria-pressed="'+(S.filter===c[0])+'">'+c[0]+' ('+c[1]+')</button>').join('')+'</div><label class="small muted" style="margin-left:auto;display:flex;align-items:center;gap:6px">Find folio<input id="q" type="search" value="'+esc(S.q)+'" data-i="q" placeholder="e.g. DN-35846" style="height:30px;width:150px;border:1px solid #CBD3DC;border-radius:6px;padding:0 8px;font-size:12px"></label></div>';
+    h+='<div class="scroll-x"><table class="tbl" style="min-width:1000px"><thead><tr><th>Folio</th><th>Batch</th><th class="num">Entries</th><th class="num">Accepted</th><th class="num">Rejected</th><th class="num">Capture Accuracy</th><th>LPS QA Expert</th><th>Mobius Analyst</th><th class="num">Rework Cycles</th><th>Status</th><th>Updated</th></tr></thead><tbody>'+fr.map(r=>'<tr><td><a href="LPS_QA_Review.html?mode=intelligent" style="font-weight:500;text-decoration:none">'+r[0]+'</a></td><td>'+r[1]+'</td><td class="num">'+r[2]+'</td><td class="num">'+(r[5]===null?'–':r[3])+'</td><td class="num">'+(r[5]===null?'–':r[4])+'</td><td class="num" style="font-weight:500">'+(r[5]===null?'–':r[5].toFixed(1)+'%')+'</td><td>LPS QA '+r[6]+'</td><td>Analyst '+r[7]+'</td><td class="num">'+r[8]+'</td><td><span class="pill '+pillFor(r[9])+'">'+r[9]+'</span></td><td class="muted">'+r[10]+'</td></tr>').join('')+'</tbody></table></div>';
+    if(!fr.length)h+='<div class="small muted" style="padding:14px 16px">No folios match. Clear the search or pick another status.</div>';
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:9px 16px;border-top:1px solid var(--line2)" class="small muted"><span>Showing '+fr.length+' of 810 folios</span><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="btn btn-quiet btn-sm">Previous</button><button type="button" class="btn btn-quiet btn-sm">Next</button></span></div></section>';
+    // experts + analysts
+    h+='<div class="row"><section class="card" style="flex:1 1 540px;min-width:0" aria-labelledby="ex"><div class="head"><h2 id="ex">QA Completion by LPS QA Expert</h2><span class="small muted">Workload and pace</span></div><div class="scroll-x"><table class="tbl" style="min-width:620px"><thead><tr><th>Expert</th><th class="num">Assigned</th><th class="num">Done</th><th class="num">WIP</th><th class="num">Pending</th><th>Completion</th><th class="num">Min per Folio</th><th class="num">Entries Rejected</th></tr></thead><tbody>'+EXP.map(e=>{const p=e[2]/e[1]*100;return '<tr><td style="font-weight:500">'+e[0]+'</td><td class="num">'+e[1]+'</td><td class="num">'+e[2]+'</td><td class="num">'+e[3]+'</td><td class="num">'+e[4]+'</td><td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px">'+bar(p,G)+'<span style="width:34px;text-align:right">'+Math.round(p)+'%</span></div></td><td class="num">'+e[5].toFixed(1)+'</td><td class="num">'+e[6]+'</td></tr>';}).join('')+'</tbody></table></div></section>';
+    h+='<section class="card" style="flex:1 1 540px;min-width:0" aria-labelledby="an"><div class="head"><h2 id="an">Capture Accuracy by Mobius Analyst</h2><span class="small muted">As measured by LPS QA; stratum drives Mobius QC sampling</span></div><div class="scroll-x"><table class="tbl" style="min-width:660px"><thead><tr><th>Analyst</th><th class="num">Entries QA\u2019d</th><th>Capture Accuracy</th><th class="num">Rejected</th><th>Top Error Type</th><th>Stratum</th><th class="num">4-week Trend</th></tr></thead><tbody>'+ANA.map(a=>'<tr><td style="font-weight:500">Analyst '+a[0]+'</td><td class="num">'+a[1]+'</td><td style="min-width:130px"><div style="display:flex;align-items:center;gap:8px">'+bar((a[2]-97)/3*100,a[2]>=99?G:G2)+'<span style="width:40px;text-align:right;font-weight:500">'+a[2].toFixed(1)+'%</span></div></td><td class="num">'+a[3]+'</td><td>'+a[4]+'</td><td><span class="pill '+(a[5]==='A'?'p-ok':'p-info')+'">Stratum '+a[5]+'</span></td><td class="num" style="font-weight:500;color:'+(a[6]>0?'#0E7C55':a[6]<0?'#B42318':'var(--muted)')+'">'+(a[6]>0?'+':'')+a[6].toFixed(1)+' pts</td></tr>').join('')+'</tbody></table></div></section></div>';
+    // entry types + errors
+    const et=ERR.reduce((a,x)=>a+x[1],0);
+    h+='<div class="row"><section class="card pad" style="flex:3 1 520px;min-width:0" aria-labelledby="et"><div><h2 id="et">Acceptance by Entry Type</h2><span class="small muted">Types at 99% or above can move to reduced sampling, on LPS approval</span></div>'+ETS.map(e=>'<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;align-items:baseline;gap:6px;font-size:12px"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+e[0]+'</span>'+(e[2]>=99?'<span class="pill p-ok" style="font-size:10px">Sampling Eligible</span>':'')+'<span class="muted" style="margin-left:auto;white-space:nowrap">'+fmt(e[1])+' entries</span><b style="width:44px;text-align:right">'+e[2].toFixed(1)+'%</b></div><div style="display:flex">'+bar((e[2]-97)/3*100,e[2]>=99?G:G2)+'</div></div>').join('')+'</section>';
+    h+='<section class="card pad" style="flex:2 1 320px;min-width:0" aria-labelledby="er"><div><h2 id="er">Error Categories</h2><span class="small muted">Share of '+et+' rejected entries, from QA notes</span></div>'+ERR.map(e=>'<div style="display:flex;flex-direction:column;gap:3px"><div style="display:flex;font-size:12px"><span>'+e[0]+'</span><b style="margin-left:auto">'+Math.round(e[1]/et*100)+'%</b><span class="muted" style="width:36px;text-align:right">('+e[1]+')</span></div><div style="display:flex">'+bar(e[1]/ERR[0][1]*100,B)+'</div></div>').join('')+'</section></div>';
+  }
+  const ae=document.activeElement;const aid=ae&&ae.id;
+  document.getElementById('root').innerHTML=h;
+  if(aid==='q'){const el=document.getElementById('q');el.focus();el.setSelectionRange(el.value.length,el.value.length);}
+}
+document.addEventListener('click',e=>{const el=e.target.closest('[data-a]');if(!el)return;if(el.dataset.a==='mode')S.mode=el.dataset.v;if(el.dataset.a==='filter')S.filter=el.dataset.v;render();});
+document.addEventListener('input',e=>{if(e.target.dataset.i==='q'){S.q=e.target.value;render();}});
+render();
+</script>
+</body>
+</html>

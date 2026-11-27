@@ -1,0 +1,173 @@
+{
+ "kind": "image",
+ "id": "DN-35846",
+ "file": "35846",
+ "folio": "35846",
+ "county": "Down",
+ "batch": "23548_Q3",
+ "analyst": "Unassigned",
+ "sourceId": "35846-8a1c3a9384d3",
+ "hasSource": true,
+ "pages": [
+  {
+   "img": "qa_data/batches/23548_Q3/35846/p1.jpg",
+   "width": 612.0,
+   "height": 841.7
+  }
+ ],
+ "pageFiles": [
+  "p1"
+ ],
+ "entries": [
+  {
+   "id": "E01",
+   "type": "Leasehold Particulars",
+   "page": 1,
+   "order": 1,
+   "recordKind": "entry",
+   "inactive": false,
+   "box": [
+    0.35294,
+    0.18477,
+    0.53706,
+    0.34902
+   ],
+   "fields": [
+    {
+     "label": "Entry Text",
+     "value": "Yearly rent of one pound payable on the first day of October.",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Yearly rent of one pound payable on the first day of October.",
+     "box": null
+    },
+    {
+     "label": "Entry Text Margin",
+     "value": "Schedule to Lease TY5498",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Schedule to Lease TY5498",
+     "box": null
+    },
+    {
+     "label": "Lease Document",
+     "value": "TY5498",
+     "table": "FT_LHOLD_PARTICULARS_ENTRY",
+     "basis": "observed",
+     "quote": "TY5498",
+     "box": [
+      0.35294,
+      0.18477,
+      0.45059,
+      0.2053
+     ]
+    },
+    {
+     "label": "Lessor Name",
+     "value": "Party_A",
+     "table": "FT_LHOLD_PARTICULARS_ENTRY",
+     "basis": "observed",
+     "quote": "Party_A",
+     "box": [
+      0.35294,
+      0.20873,
+      0.45118,
+      0.22926
+     ]
+    },
+    {
+     "label": "Lessee Name",
+     "value": "Party_C",
+     "table": "FT_LHOLD_PARTICULARS_ENTRY",
+     "basis": "observed",
+     "quote": "Party_C",
+     "box": [
+      0.35294,
+      0.23268,
+      0.45235,
+      0.25321
+     ]
+    },
+    {
+     "label": "Term Years",
+     "value": "999",
+     "table": "FT_LHOLD_PARTICULARS_ENTRY",
+     "basis": "observed",
+     "quote": "999",
+     "box": [
+      0.35294,
+      0.25663,
+      0.41824,
+      0.27716
+     ]
+    },
+    {
+     "label": "Commencement Date",
+     "value": "1st October 1979",
+     "table": "FT_LHOLD_PARTICULARS_ENTRY",
+     "basis": "observed",
+     "quote": "1st October 1979",
+     "box": [
+      0.35294,
+      0.28058,
+      0.52412,
+      0.30111
+     ]
+    },
+    {
+     "label": "Yearly Rent",
+     "value": "one pound",
+     "table": "FT_LHOLD_YRLY_RENT_ENTRY",
+     "basis": "observed",
+     "quote": "one pound",
+     "box": [
+      0.35294,
+      0.30453,
+      0.47294,
+      0.32506
+     ]
+    },
+    {
+     "label": "Rent Payable On",
+     "value": "first day of October",
+     "table": "FT_LHOLD_YRLY_RENT_ENTRY",
+     "basis": "observed",
+     "quote": "first day of October",
+     "box": [
+      0.35294,
+      0.32849,
+      0.53706,
+      0.34902
+     ]
+    }
+   ]
+  },
+  {
+   "id": "E02",
+   "type": "Covenants",
+   "page": 1,
+   "order": 2,
+   "recordKind": "entry",
+   "inactive": false,
+   "box": null,
+   "fields": [
+    {
+     "label": "Entry Text",
+     "value": "The transferee covenants to maintain the boundary fence.",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "The transferee covenants to maintain the boundary fence.",
+     "box": null
+    },
+    {
+     "label": "Entry Text Margin",
+     "value": "Registered 9th December 1981 No. 16284/81/1A",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Registered 9th December 1981 No. 16284/81/1A",
+     "box": null
+    }
+   ]
+  }
+ ]
+}

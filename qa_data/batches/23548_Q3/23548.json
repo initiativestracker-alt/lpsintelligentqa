@@ -1,0 +1,312 @@
+{
+ "kind": "image",
+ "id": "DN-23548",
+ "file": "23548",
+ "folio": "23548",
+ "county": "Down",
+ "batch": "23548_Q3",
+ "analyst": "Unassigned",
+ "sourceId": "23548-8a1c3a9384d3",
+ "hasSource": true,
+ "pages": [
+  {
+   "img": "qa_data/batches/23548_Q3/23548/p1.jpg",
+   "width": 612.0,
+   "height": 841.7
+  }
+ ],
+ "pageFiles": [
+  "p1"
+ ],
+ "entries": [
+  {
+   "id": "E01",
+   "type": "Description of Land",
+   "page": 1,
+   "order": 1,
+   "recordKind": "entry",
+   "inactive": false,
+   "box": [
+    0.35294,
+    0.18477,
+    0.53466,
+    0.32506
+   ],
+   "fields": [
+    {
+     "label": "Folio Parcel Number",
+     "value": "1",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "observed",
+     "quote": "1",
+     "box": [
+      0.35294,
+      0.18477,
+      0.39824,
+      0.2053
+     ]
+    },
+    {
+     "label": "Townland Name",
+     "value": "Townland_A (part)",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "observed",
+     "quote": "Townland_A (part)",
+     "box": [
+      0.35294,
+      0.20873,
+      0.53466,
+      0.22926
+     ]
+    },
+    {
+     "label": "Barony Name",
+     "value": "Barony_A",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "derived",
+     "quote": "Barony_A",
+     "box": [
+      0.35294,
+      0.23268,
+      0.46647,
+      0.25321
+     ]
+    },
+    {
+     "label": "County Name",
+     "value": "Down",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "derived",
+     "quote": "Down",
+     "box": [
+      0.35294,
+      0.25663,
+      0.43412,
+      0.27716
+     ]
+    },
+    {
+     "label": "Area",
+     "value": "0A 3R 1041 S.Yds",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "observed",
+     "quote": "0A 3R 1041 S.Yds",
+     "box": [
+      0.35294,
+      0.28058,
+      0.5341,
+      0.30111
+     ]
+    },
+    {
+     "label": "Prior Folio Reference",
+     "value": "16499 and 16548",
+     "table": "FT_DESCRIPTION_OF_LAND_ENTRY",
+     "basis": "observed",
+     "quote": "16499 and 16548",
+     "box": [
+      0.35294,
+      0.30453,
+      0.52765,
+      0.32506
+     ]
+    },
+    {
+     "label": "Entry Text",
+     "value": "Being portions of the lands heretofore comprised in Folio 16499, containing 0A 3R 1041 S.Yds.",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Being portions of the lands heretofore comprised in Folio 16499, containing 0A 3R 1041 S.Yds.",
+     "box": null
+    },
+    {
+     "label": "Entry Text Margin",
+     "value": "Date of original registration 18th July 1924",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Date of original registration 18th July 1924",
+     "box": null
+    }
+   ]
+  },
+  {
+   "id": "E02",
+   "type": "Transfer of Part",
+   "page": 1,
+   "order": 2,
+   "recordKind": "entry",
+   "inactive": false,
+   "box": [
+    0.35294,
+    0.42087,
+    0.52176,
+    0.56116
+   ],
+   "fields": [
+    {
+     "label": "Entry Text",
+     "value": "Part of the lands herein shown coloured red on the Registry map, transferred to Party_B. See Folio 39102.",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Part of the lands herein shown coloured red on the Registry map, transferred to Party_B. See Folio 39102.",
+     "box": null
+    },
+    {
+     "label": "Entry Text Margin",
+     "value": "Registered 14th March 1985 No. 4471/1985",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Registered 14th March 1985 No. 4471/1985",
+     "box": null
+    },
+    {
+     "label": "Dealing Number",
+     "value": "4471/1985",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "observed",
+     "quote": "4471/1985",
+     "box": [
+      0.35294,
+      0.42087,
+      0.47294,
+      0.4414
+     ]
+    },
+    {
+     "label": "Transfer Date",
+     "value": "14th March 1985",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "observed",
+     "quote": "14th March 1985",
+     "box": [
+      0.35294,
+      0.44482,
+      0.52176,
+      0.46536
+     ]
+    },
+    {
+     "label": "Transferee Name",
+     "value": "Party_B",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "derived",
+     "quote": "Party_B",
+     "box": [
+      0.35294,
+      0.46878,
+      0.45118,
+      0.48931
+     ]
+    },
+    {
+     "label": "Part Description",
+     "value": "coloured red",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "observed",
+     "quote": "coloured red",
+     "box": [
+      0.35294,
+      0.49273,
+      0.48765,
+      0.51326
+     ]
+    },
+    {
+     "label": "Map Reference",
+     "value": "Sheet 248-12",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "observed",
+     "quote": "Sheet 248-12",
+     "box": [
+      0.35294,
+      0.51668,
+      0.49529,
+      0.53721
+     ]
+    },
+    {
+     "label": "New Folio Number",
+     "value": "39102",
+     "table": "FT_TOP_PART_OR_ENTRY",
+     "basis": "observed",
+     "quote": "39102",
+     "box": [
+      0.35294,
+      0.54063,
+      0.43824,
+      0.56116
+     ]
+    }
+   ]
+  },
+  {
+   "id": "E03",
+   "type": "Easements",
+   "page": 2,
+   "order": 3,
+   "recordKind": "entry",
+   "inactive": false,
+   "box": null,
+   "fields": [
+    {
+     "label": "Easement Type",
+     "value": "right of way",
+     "table": "FT_EASEMENT_ENTRY",
+     "basis": "observed",
+     "quote": "right of way",
+     "box": null
+    },
+    {
+     "label": "Easement Mode",
+     "value": "on foot and with vehicles",
+     "table": "FT_EASEMENT_ENTRY",
+     "basis": "observed",
+     "quote": "on foot and with vehicles",
+     "box": null
+    },
+    {
+     "label": "Benefit Or Burden",
+     "value": "Burden",
+     "table": "FT_EASEMENT_ENTRY",
+     "basis": "derived",
+     "quote": "Burden",
+     "box": null
+    },
+    {
+     "label": "Benefiting Folio",
+     "value": "35210",
+     "table": "FT_EASEMENT_ENTRY",
+     "basis": "observed",
+     "quote": "35210",
+     "box": null
+    },
+    {
+     "label": "Entry Text",
+     "value": "The land herein is subject to a right of way over the lane shown hatched brown for the benefit of the lands in Folio 35210.",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "The land herein is subject to a right of way over the lane shown hatched brown for the benefit of the lands in Folio 35210.",
+     "box": null
+    },
+    {
+     "label": "Entry Text Margin",
+     "value": "Registered 2nd May 1986 No. 2210/1986",
+     "table": "FT_FOLIO_TEXT",
+     "basis": "observed",
+     "quote": "Registered 2nd May 1986 No. 2210/1986",
+     "box": null
+    }
+   ]
+  },
+  {
+   "id": "E04",
+   "type": "Note",
+   "page": 2,
+   "order": 4,
+   "recordKind": "note",
+   "inactive": true,
+   "box": null,
+   "fields": []
+  }
+ ]
+}
