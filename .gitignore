@@ -1,0 +1,13 @@
+# Generated QA data (rebuilt by qa_ingest.py) - never commit
+qa_data/
+
+# Delivery input folder (written by the producer's "Push to QA") - never commit
+sample_delivery/
+
+# Environment-specific configuration (paths differ per machine)
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
