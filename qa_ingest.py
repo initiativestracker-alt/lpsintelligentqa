@@ -314,12 +314,13 @@ def collect_files(zips, warnings, batch_name):
     chosen = {}
     for name in sorted(union):
         key, role, version, page = parse_name(name)
-        current = chosen.get((key, role))
+        slot = (key, role, page)
+        current = chosen.get(slot)
         if current is None:
-            chosen[(key, role)] = (version, name, page)
+            chosen[slot] = (version, name, page)
         elif version > current[0]:
             warnings.add(batch_name, f"{current[1]} superseded by {name}")
-            chosen[(key, role)] = (version, name, page)
+            chosen[slot] = (version, name, page)
         else:
             warnings.add(batch_name, f"{name} superseded by {current[1]}")
     return union, chosen
@@ -328,7 +329,7 @@ def collect_files(zips, warnings, batch_name):
 def family_of(chosen):
     """Group resolved files into folios: one per base name."""
     folios = {}
-    for (key, role), (_version, name, page) in chosen.items():
+    for (key, role, page), (_version, name, _page) in chosen.items():
         entry = folios.setdefault(key, {"values": None, "coords": None, "source": None, "images": []})
         if role == "source":
             entry["source"] = name
