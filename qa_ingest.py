@@ -89,16 +89,21 @@ def _normalise_name(value):
 
 def _normalise_sheet(value):
     name = str(value or "").strip().casefold()
-    return "covenant" if name == "covenants" else name
+    return {"covenants": "covenant", "easements": "easement"}.get(name, name)
 
 
 @lru_cache(maxsize=4)
 def load_field_names(workbook_path):
-    """Load LPS display labels keyed by entry type, table and internal field."""
+    """Load LPS display labels and the workbook's field order per entry type.
+
+    Returns ``(by_sheet, by_table_field, order_by_sheet)``: labels keyed by entry type, table
+    and internal field; a shared ``(table, field) -> {label}`` index; and, per entry type, the
+    ``(table, field)`` pairs in the order the workbook lists them.
+    """
     from openpyxl import load_workbook
 
     workbook = load_workbook(workbook_path, read_only=True, data_only=True)
-    by_sheet, by_table_field = {}, {}
+    by_sheet, by_table_field, order_by_sheet = {}, {}, {}
     try:
         for sheet in workbook.worksheets:
             rows = sheet.iter_rows(values_only=True)
@@ -109,6 +114,7 @@ def load_field_names(workbook_path):
                     continue
                 table_i, field_i, label_i = (
                     headers["tablename"], headers["fieldname"], headers["fieldnamesperlps"])
+                order = []
                 for values in rows:
                     if max(table_i, field_i, label_i) >= len(values):
                         continue
@@ -120,19 +126,22 @@ def load_field_names(workbook_path):
                     label = str(label).strip()
                     by_sheet[(_normalise_sheet(sheet.title), table, field)] = label
                     by_table_field.setdefault((table, field), set()).add(label)
+                    if (table, field) not in order:
+                        order.append((table, field))
+                order_by_sheet[_normalise_sheet(sheet.title)] = order
                 break
     finally:
         workbook.close()
 
     if not by_sheet:
         raise ValueError(f"No TABLE_NAME / FIELD_NAME / Field Names Per LPS headers in {workbook_path}")
-    return by_sheet, by_table_field
+    return by_sheet, by_table_field, order_by_sheet
 
 
 def display_field_name(field_names, entry_type, table, field):
     if not field_names:
         return humanise(field)
-    by_sheet, by_table_field = field_names
+    by_sheet, by_table_field = field_names[0], field_names[1]
     table_key = str(table or "").strip().split("|")[-1].strip().upper()
     field_key = str(field or "").strip().upper()
     label = by_sheet.get((_normalise_sheet(entry_type), table_key, field_key))
@@ -140,6 +149,36 @@ def display_field_name(field_names, entry_type, table, field):
         return label
     shared_labels = by_table_field.get((table_key, field_key), set())
     return next(iter(shared_labels)) if len(shared_labels) == 1 else humanise(field)
+
+
+def ordered_display_tables(field_names, entry_type, tables, records_by_table):
+    """Display order for one entry, as ``(table, [field, ...])`` pairs.
+
+    ``tables`` maps every table in the CSV header to its fields and ``records_by_table`` maps
+    each table to the records captured for the entry. Every field of the entry type's
+    ``23548 Output.xlsx`` sheet is shown, blank included and in the sheet's order; a table whose
+    captured records include a field the sheet omits is extended so nothing captured is hidden,
+    and a table with records but no sheet entry is appended.
+    """
+    order_by_sheet = field_names[2] if field_names and len(field_names) > 2 else {}
+    ordered, seen = [], {}
+    for table, field in order_by_sheet.get(_normalise_sheet(entry_type), []):
+        if table not in seen:
+            seen[table] = []
+            ordered.append((table, seen[table]))
+        if field not in seen[table]:
+            seen[table].append(field)
+    for table, fields in ordered:
+        if not records_by_table.get(table):
+            continue
+        for field in tables.get(table, ()):
+            if field not in fields:
+                fields.append(field)
+    for table, fields in tables.items():
+        if table in seen or not records_by_table.get(table):
+            continue
+        ordered.append((table, list(fields)))
+    return ordered
 
 
 def parse_reason_codes(value):
@@ -560,14 +599,18 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                 if box:
                     boxes.append(box)
         else:
-            for table in sorted(tables):
+            records_by_table = {}
+            for table in tables:
                 try:
-                    records = json.loads(row.get(table) or "[]")
+                    records_by_table[table] = json.loads(row.get(table) or "[]")
                 except json.JSONDecodeError:
-                    records = []
+                    records_by_table[table] = []
+            for table, table_fields in ordered_display_tables(
+                    field_names, entry_type, tables, records_by_table):
+                records = records_by_table.get(table, [])
                 count = len(records) or 1
                 for index in range(count):
-                    for field in tables[table]:
+                    for field in table_fields:
                         if field in SKIP_FIELDS:
                             continue
                         value = row.get(f"{table}.{field}", "")
@@ -577,8 +620,6 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                             except json.JSONDecodeError:
                                 values = []
                             value = values[index] if index < len(values) else ""
-                        if value in (None, ""):
-                            continue
                         located = coords_index.get((entry_id, table, field), {})
                         page = located.get("page") or info.get("page") or 1
                         box = fraction(located.get("box"), sizes.get(page, (0, 0)))
@@ -587,7 +628,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                         fields.append({
                             "label": display_field_name(field_names, entry_type, table, field)
                                      + (f" #{index + 1}" if count > 1 else ""),
-                            "value": str(value),
+                            "value": "" if value is None else str(value),
                             "table": table,
                             "basis": located.get("basis", ""),
                             "flag": flag,

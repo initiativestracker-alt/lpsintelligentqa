@@ -107,7 +107,7 @@ let BATCHES=[],FOLIOS={},ETS=[],ALL_FOLIOS=[];
 const ANALYSTS=['A01','A02','A03','A04','A05','A06','A07','A08'];
 const EXPERTS=[['E1','LPS QA Expert 1','14 open'],['E2','LPS QA Expert 2','9 open'],['E3','LPS QA Expert 3','22 open'],['E4','LPS QA Expert 4','0 open'],['E5','LPS QA Expert 5','6 open']];
 const DEF=()=>({batch:['ALL'],folio:['ALL'],et:['ALL'],tags:[],analyst:['ALL']});
-const S={mode:'random',open:null,pct:10,allocated:false,err:'',ready:false,allocatedScope:null,sel:Object.assign(DEF(),{expert:['ALL']})};
+const S={mode:'random',open:null,pct:10,allocated:false,err:'',ready:false,allocatedScope:null,sel:Object.assign(DEF(),{expert:[]})};
 const fmt=n=>Math.round(n).toLocaleString('en-GB');
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const CHEV='<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>';
