@@ -207,13 +207,14 @@ mark.fld.hit{background:rgba(255,160,0,.5)!important;outline:2px solid #E07B00;o
 .qa-group-fields .fv{height:30px;font-size:11px}
 .qa-group-fields .cbtn{width:29px;height:29px}
 .qa-review-footer{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;margin-top:0!important;padding:9px 11px!important;border-top:1px solid var(--line);background:#fff}
-.qa-footer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
-.qa-footer-status{font-size:10px}
-.qa-footer-toolbar .actions{gap:4px}
-.qa-review-footer .actions .btn{width:auto;min-width:88px}
+.qa-footer-toolbar{display:flex;flex-direction:column;align-items:stretch;gap:4px}
+.qa-footer-status{font-size:9px;line-height:1.25}
+.qa-footer-toolbar .actions{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:5px;width:100%;margin:0;padding:3px}
+.qa-footer-toolbar .actions .sep{display:none}
+.qa-review-footer .actions .btn{width:100%;min-width:0;height:31px;padding:0 4px;font-size:10px}
 .qa-submit-folio{width:100%;justify-content:center}
 @media(max-width:1080px){.work.qa-review-layout{grid-template-columns:142px minmax(0,1fr);height:auto;min-height:0}.qa-entry-rail{grid-row:span 2;height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.pane{height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.qa-inspector{grid-column:2}.qa-inspector-scroll{max-height:none}}
-@media(max-width:700px){.work.qa-review-layout{grid-template-columns:minmax(0,1fr);padding:9px;gap:9px}.qa-entry-rail{grid-row:auto;position:static;height:210px;min-height:0}.qa-review-layout>.pane,.qa-review-layout>.qa-inspector{grid-column:1;height:70vh;min-height:420px}.qa-review-layout .document-toolbar{flex-wrap:wrap}.qa-review-layout .qa-review-footer{height:auto}.qa-footer-toolbar{align-items:stretch;flex-direction:column}.qa-footer-toolbar .actions{margin:0;width:100%;justify-content:space-between}.qa-review-footer .actions .btn{min-width:0;flex:1}}
+@media(max-width:700px){.work.qa-review-layout{grid-template-columns:minmax(0,1fr);padding:9px;gap:9px}.qa-entry-rail{grid-row:auto;position:static;height:210px;min-height:0}.qa-review-layout>.pane,.qa-review-layout>.qa-inspector{grid-column:1;height:70vh;min-height:420px}.qa-review-layout .document-toolbar{flex-wrap:wrap}.qa-review-layout .qa-review-footer{height:auto}.qa-footer-toolbar .actions{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>
 </head>
 <body>
@@ -362,11 +363,11 @@ function decide(st){
   const F=FF(),fs=FS(),i=fs.cur;const hasNote=F.E[i].fields.some((f,k)=>S.comments[kOf(i,k)]);
   if(st==='Rejected'&&!F.E[i].inactive&&!hasNote){S.err='Add a QA note on at least one field before rejecting.';render();return;}
   fs.status[i]=st;S.err='';S.openC=null;S.draft='';S.fsel=null;
-  const seq=seqOf(F);let next=-1;
-  for(let k=1;k<=F.E.length;k++){const j=(i+k)%F.E.length;if(seq.includes(j)&&fs.status[j]==='Pending'){next=j;break;}}
+  const seq=seqOf(F),ordered=seq.filter(j=>j>i).concat(seq.filter(j=>j<=i));
+  const next=ordered.find(j=>fs.status[j]==='Pending');
   if(next>=0){fs.cur=next;fs.page=F.E[next].page;S.scrollTo='e'+next;}
   persistReview();
-  flash('Entry '+F.E[i].no+' '+st.toLowerCase());
+  flash('Entry '+F.E[i].no+' '+st.toLowerCase()+(next>=0?'; moved to entry '+F.E[next].no:'. All in-scope entries reviewed.'));
 }
 function submitFolio(){
   const F=FF(),fs=FS(),scope=seqOf(F);
@@ -403,9 +404,9 @@ function imagePage(){
     const boxes=new Map();
     grp.forEach(j=>{
       const entry=F.E[j];
-      const regions=entry.regions.filter(region=>region.page===st.page);
+      const regions=entry.regions.filter(region=>region.page===st.page&&(!entry.inactive||region.page===entry.page));
       if(regions.length)regions.forEach(region=>boxes.set(region.box.join(','),region.box));
-      else if(!entry.regions.length&&entry.page===st.page&&entry.box)boxes.set(entry.box.join(','),entry.box);
+      else if((!entry.regions.length||entry.inactive)&&entry.page===st.page&&entry.box)boxes.set(entry.box.join(','),entry.box);
     });
     if(!boxes.size)return;
     const inactive=grp.some(j=>F.E[j].inactive);
@@ -509,7 +510,7 @@ function render(){
   if(S.err)h+='<span class="small qa-footer-status" role="alert" style="color:#B42318">'+S.err+'</span>';
   else if(folioDone)h+='<span class="small qa-footer-status" role="status" style="color:#0E6B49">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' Submit this folio to continue.</span>';
   else h+='<span class="small muted qa-footer-status" role="status">'+seq.filter(i=>st.status[i]==='Pending').length+' in-scope entr'+(seq.filter(i=>st.status[i]==='Pending').length===1?'y':'ies')+' remaining.</span>';
-  h+='<div class="actions" role="group" aria-label="Entry actions"><button type="button" class="btn btn-quiet" data-a="prev"'+(canStep(-1)?'':' disabled')+'>'+ic(L)+'Previous Entry</button><button type="button" class="btn btn-quiet" data-a="next"'+(canStep(1)?'':' disabled')+'>Next Entry'+ic(R)+'</button><span class="sep" aria-hidden="true"></span><button type="button" class="btn btn-ok" data-a="accept"'+(cur?'':' disabled')+'>Accept Entry</button><button type="button" class="btn btn-bad" data-a="reject"'+(cur?'':' disabled')+'>Reject Entry</button></div></div>';
+  h+='<div class="actions" role="group" aria-label="Entry actions"><button type="button" class="btn btn-quiet" data-a="prev"'+(canStep(-1)?'':' disabled')+'>'+ic(L)+'Previous Entry</button><button type="button" class="btn btn-quiet" data-a="next"'+(canStep(1)?'':' disabled')+'>Next Entry'+ic(R)+'</button><span class="sep" aria-hidden="true"></span><button type="button" class="btn btn-ok" data-a="accept"'+(cur?'':' disabled')+'>Accept &amp; Next</button><button type="button" class="btn btn-bad" data-a="reject"'+(cur?'':' disabled')+'>Reject &amp; Next</button></div></div>';
   h+='<button type="button" class="btn btn-primary qa-submit-folio" data-a="submitfolio"'+(folioDone?'':' disabled')+'>Submit Folio</button></div>';
   h+='</section></div>';
   if(S.modal){const isQ=S.modal==='query';const opts=isQ?[['entry-type','Entry type classification'],['illegible','Illegible or unclear text'],['active','Active or inactive status'],['schema','Schema or field rule']]:[['S01','Senior Analyst S01 (Mobius)'],['S02','Senior Analyst S02 (Mobius)'],['LEAD','LPS Lead Reviewer']];
