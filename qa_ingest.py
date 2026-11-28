@@ -631,6 +631,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                                      + (f" #{index + 1}" if count > 1 else ""),
                             "value": "" if value is None else str(value),
                             "table": table,
+                            "page": page,
                             "basis": located.get("basis", ""),
                             "flag": flag,
                             "quote": located.get("quote", ""),
@@ -676,15 +677,17 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
 # --------------------------------------------------------------------------- driver
 
 def ingest(root, out_dir, public, warnings, field_names=None):
+    # Recreate the output directory up front so an empty delivery root still yields a
+    # valid (empty) index instead of leaving stale data or crashing the driver.
+    if out_dir.exists():
+        shutil.rmtree(out_dir)
+    (out_dir / "batches").mkdir(parents=True)
+
     batches = discover_batches(root, warnings)
     if not batches:
         warnings.add(None, f"no batch folders found under {root}", level="error")
         return {"generated": None, "root": str(root), "batches": [], "entryTypes": [],
                 "counties": [], "totals": {"batches": 0, "folios": 0, "entries": 0}}
-
-    if out_dir.exists():
-        shutil.rmtree(out_dir)
-    (out_dir / "batches").mkdir(parents=True)
 
     index_batches, type_counts, counties = [], {}, {}
     total_folios = total_entries = 0

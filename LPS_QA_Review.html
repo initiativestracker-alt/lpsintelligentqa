@@ -159,6 +159,57 @@ mark.fld.hit{background:rgba(255,160,0,.5)!important;outline:2px solid #E07B00;o
 .flab[aria-pressed="true"]{color:#B35C00;font-weight:600}.flab[aria-pressed="true"] svg{color:#E07B00}
 .frow.on{background:#FFF7E8}
 .p-na{background:#EEF1F4;color:#5B6472}
+.work.qa-review-layout{display:grid;grid-template-columns:154px minmax(320px,1.12fr) minmax(360px,1fr);gap:12px;padding:12px;align-items:stretch;height:calc(100vh - 250px);min-height:560px}
+.qa-entry-rail,.qa-review-layout>.pane{height:100%;min-height:0;min-width:0}
+.qa-entry-rail{position:sticky;top:12px;display:flex;flex-direction:column;background:#fff;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.qa-entry-list-heading{display:flex;justify-content:space-between;align-items:center;padding:12px 11px;border-bottom:1px solid var(--line);font-size:9px;letter-spacing:1.2px;color:var(--muted);font-weight:600}
+.qa-entry-list{overflow:auto;min-height:0}
+.qa-entry-item{display:flex;flex-direction:column;align-items:flex-start;gap:4px;width:100%;padding:10px 10px 10px 11px;border:0;border-left:3px solid transparent;border-bottom:1px solid var(--line2);background:#fff;text-align:left;cursor:pointer}
+.qa-entry-item:hover{background:#F7FAFD}
+.qa-entry-item.selected{background:#EAF2FD;border-left-color:#2F6FD6;color:var(--blue-d)}
+.qa-entry-item.focus{background:#FFF8EC}
+.qa-entry-item.selected.focus{background:#EAF2FD}
+.qa-entry-item.skipped{color:#727C88}
+.qa-entry-item strong{font-size:11px;font-weight:600;line-height:1.35}
+.qa-entry-number{font-size:9px;letter-spacing:.8px;color:#7B8794}
+.qa-entry-item small{font-size:9px;line-height:1.35}
+.qa-entry-meta{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.qa-entry-meta .pill{font-size:9px;padding:1px 5px}
+.qa-review-layout>.pane{flex:none;width:100%;flex-direction:column;overflow:hidden}
+.qa-review-layout .viewer{height:auto;flex:1;min-height:0;padding:14px}
+.qa-review-layout .document-panel{height:100%}
+.qa-review-layout .qa-inspector{height:100%;overflow:hidden}
+.qa-inspector-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:13px 14px;border-bottom:1px solid var(--line);background:#fff}
+.qa-inspector-heading h2{font-size:15px;line-height:1.35}
+.qa-inspector-heading .eyebrow{margin:0 0 3px;font-size:8px}
+.qa-inspector-heading .muted{font-size:10px;margin-top:3px}
+.qa-inspector-scroll{flex:1;min-height:0;overflow:auto;padding:10px 12px 14px}
+.qa-inspector-scroll>.reason-panel{margin-bottom:10px}
+.qa-inspector-scroll>.scope{margin:8px 0 10px;padding:8px 10px}
+.qa-selected-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:8px 0;padding:8px 10px;border:1px solid var(--line);border-radius:6px;background:#FAFBFC}
+.qa-selected-summary strong{font-size:11px}
+.qa-selected-summary .muted{font-size:10px}
+.qa-fields-heading{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0 6px}
+.qa-fields-heading h2{font-size:13px}
+.qa-fields-heading .xs{flex-basis:100%}
+.qa-fields-header{display:grid;grid-template-columns:minmax(90px,1.1fr) minmax(95px,1.5fr) 48px 32px;gap:7px;align-items:center;padding:6px 7px;background:var(--hdr);border-radius:5px;font-size:10px;font-weight:500;color:var(--blue)}
+.qa-field-group{margin-top:8px;border:1px solid var(--line);border-radius:6px;overflow:hidden;background:#fff}
+.qa-field-group>summary{padding:8px 9px;background:#FAFBFC;font-size:10px;font-weight:600;color:#374151;cursor:pointer;list-style:none}
+.qa-field-group>summary::-webkit-details-marker{display:none}
+.qa-field-group>summary:after{content:"+";float:right;color:var(--muted);font-size:13px;line-height:1}
+.qa-field-group[open]>summary:after{content:"−"}
+.qa-field-group>summary span{float:right;margin-right:13px;color:var(--muted);font-weight:500}
+.qa-group-fields{padding:2px 5px 6px}
+.qa-group-fields .fgrid{grid-template-columns:minmax(90px,1.1fr) minmax(95px,1.5fr) 48px 32px;gap:7px;padding:6px 3px}
+.qa-group-fields .flab{font-size:10px;line-height:1.3}
+.qa-group-fields .flab svg{width:13px;height:13px}
+.qa-group-fields .fv{height:30px;font-size:11px}
+.qa-group-fields .cbtn{width:29px;height:29px}
+.qa-review-footer{flex:0 0 auto;margin-top:0!important;padding:9px 11px!important;background:#fff}
+.qa-review-footer>.actions{gap:4px}
+.qa-review-footer .actions .btn{width:auto;min-width:88px}
+@media(max-width:1080px){.work.qa-review-layout{grid-template-columns:142px minmax(0,1fr);height:auto;min-height:0}.qa-entry-rail{grid-row:span 2;height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.pane{height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.qa-inspector{grid-column:2}.qa-inspector-scroll{max-height:none}}
+@media(max-width:700px){.work.qa-review-layout{grid-template-columns:minmax(0,1fr);padding:9px;gap:9px}.qa-entry-rail{grid-row:auto;position:static;height:210px;min-height:0}.qa-review-layout>.pane,.qa-review-layout>.qa-inspector{grid-column:1;height:70vh;min-height:420px}.qa-review-layout .document-toolbar{flex-wrap:wrap}.qa-review-layout .qa-review-footer{height:auto;flex-wrap:wrap}.qa-review-footer>.actions{margin:0;width:100%;justify-content:flex-end}.qa-review-footer .actions .btn{min-width:0;flex:1}}
 </style>
 </head>
 <body>
@@ -214,7 +265,7 @@ function normalise(list){return list.map(F=>{
     F.E=F.entries.slice().sort((a,b)=>a.page-b.page||a.order-b.order).map(x=>({
       id:x.id,type:x.type,page:x.page,order:x.order,box:x.box||null,inactive:!!x.inactive,
       cancellationStatus:x.cancellationStatus||'',flag:x.flag||'',
-      fields:(x.fields||[]).map(f=>({label:f.label,value:f.value,flag:f.flag||x.flag||'',box:f.box||null,onImage:!!f.box}))
+      fields:(x.fields||[]).map(f=>({label:f.label,value:f.value,table:f.table||'Attributes',page:Number(f.page)||Number(x.page)||1,basis:f.basis||'',quote:f.quote||'',flag:f.flag||x.flag||'',box:f.box||null,onImage:!!f.box}))
     }));
   }
   // entries sharing a page/entry position (one paragraph captured as several entry types) are numbered 4a, 4b, 4c
@@ -237,7 +288,8 @@ const newFs=()=>FOLIOS.map(F=>{
   const saved=loadSavedFolio(F.id);
   const status=F.E.map((_,index)=>saved.status&&saved.status[index]||'Pending');
   const pending=seqOf(F).find(index=>status[index]==='Pending');
-  return {page:1,cur:pending===undefined?(seqOf(F)[0]||0):pending,status,submitted:!!saved.submitted,listOpen:true};
+  const cur=pending===undefined?(seqOf(F)[0]||0):pending;
+  return {page:Number(F.E[cur]?.page)||1,cur,status,submitted:!!saved.submitted,listOpen:true};
 });
 const FF=()=>FOLIOS[S.f], FS=()=>S.fs[S.f];
 function loadReviewData(){
@@ -291,7 +343,7 @@ const pct=b=>'left:'+(b[0]*100)+'%;top:'+(b[1]*100)+'%;width:'+((b[2]-b[0])*100)
 const kOf=(i,k)=>S.f+'.'+i+'.'+k;
 
 function go(i,fromList){const F=FF(),st=FS();if(i<0||i>=F.E.length)return;st.cur=i;st.page=F.E[i].page;S.openC=null;S.draft='';S.err='';S.fsel=null;S.scrollTo='e'+i;if(fromList)st.listOpen=false;render();}
-function pickField(key){const [f,i,k]=key.split('.').map(Number);if(f!==S.f)return;const st=FS();if(st.cur!==i){st.cur=i;S.openC=null;S.draft='';}st.page=FF().E[i].page;S.fsel=key;S.scrollTo='f'+key;render();}
+function pickField(key){const [f,i,k]=key.split('.').map(Number);if(f!==S.f)return;const st=FS(),entry=FF().E[i],field=entry.fields[k];if(st.cur!==i){st.cur=i;S.openC=null;S.draft='';}st.page=field.page||entry.page;S.fsel=key;S.scrollTo='f'+key;render();}
 function step(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);let t;if(k<0)t=d>0?seq.find(x=>x>st.cur):[...seq].reverse().find(x=>x<st.cur);else t=seq[k+d];if(t!==undefined)go(t);}
 function canStep(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);if(k<0)return d>0?seq.some(x=>x>st.cur):seq.some(x=>x<st.cur);return seq[k+d]!==undefined;}
 function flash(m){S.toast=m;render();clearTimeout(window._t);window._t=setTimeout(()=>{S.toast='';render();},2600);}
@@ -348,7 +400,7 @@ function imagePage(){
     h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" style="'+pct(bx)+'" data-a="pick" data-v="'+tgt+'" aria-label="'+(grp.length>1?'Entries '+grp.map(j=>F.E[j].no+' '+esc(F.E[j].type)).join(', '):'Entry '+e.no+', '+esc(e.type))+'"><span class="etag">'+tag+(anyFocus?' (QA Focus)':'')+'</span></button>';
   });
   const e=F.E[st.cur];
-  if(e&&e.page===st.page)e.fields.forEach((f,k)=>{if(!f.box)return;const key=kOf(st.cur,k);h+='<button type="button" id="f'+key+'" class="fbox'+(S.fsel===key?' hit':'')+'" style="'+pct(f.box)+'" data-a="fpick" data-v="'+key+'" aria-label="'+esc(f.label)+'" title="'+esc(f.label)+': '+esc(f.value)+'"></button>';});
+  if(e)e.fields.forEach((f,k)=>{if(!f.box||(f.page||e.page)!==st.page)return;const key=kOf(st.cur,k);h+='<button type="button" id="f'+key+'" class="fbox'+(S.fsel===key?' hit':'')+'" style="'+pct(f.box)+'" data-a="fpick" data-v="'+key+'" aria-label="'+esc(f.label)+'" title="'+esc(f.label)+': '+esc(f.value)+'"></button>';});
   return h+'</div>';
 }
 function textView(){
@@ -381,8 +433,14 @@ function render(){
   const ftxt=FOCUS.length>4?FOCUS.slice(0,4).map(esc).join(', ')+' and '+(FOCUS.length-4)+' more':FOCUS.map(esc).join(', ');
   if(foc)h+='<div class="scope" role="note"><b style="font-weight:600">Intelligent QA focus ('+FOCUS.length+' entry type'+(FOCUS.length>1?'s':'')+'):</b> <span title="'+FOCUS.map(esc).join(', ')+'">'+ftxt+'</span>. '+seq.length+' of '+NE+' entries in this folio need review; the rest can be skipped.'+(SAVED_AT?' <span style="opacity:.8">Set at allocation, '+SAVED_AT+'.</span>':'')+'</div>';
   else h+='<div class="scope all" role="note"><b style="font-weight:600">'+(QA_MODE==='intelligent'?'Intelligent QA':'Random QA')+':</b> review all entries in this folio.</div>';
-  h+='<div class="work">';
-  // LHS
+  h+='<div class="work qa-review-layout">';
+  h+='<nav class="qa-entry-rail" aria-label="Entries in this folio"><div class="qa-entry-list-heading"><span>ENTRIES</span><span>'+NE+'</span></div><div class="qa-entry-list">';
+  F.E.forEach((e,i)=>{const focused=inFocus(e),cls=['qa-entry-item'];if(i===st.cur)cls.push('selected');if(focused)cls.push('focus');else if(foc)cls.push('skipped');
+    const scope=!foc?'':(focused?'<span class="pill p-warn">QA focus</span>':'<span class="pill p-grey">Skip</span>');
+    const pages=[...new Set(e.fields.map(field=>field.page).filter(Boolean))];if(!pages.length&&e.page)pages.push(e.page);
+    h+='<button type="button" class="'+cls.join(' ')+'" data-a="pickl" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'"><span class="qa-entry-number">'+String(i+1).padStart(2,'0')+'</span><strong>'+esc(e.type||'Unclassified entry')+'</strong><small>Page '+(pages.length?pages.join(', '):e.page||1)+(e.inactive?' · Struck through':'')+'</small><span class="qa-entry-meta">'+scope+'<span class="pill '+(st.status[i]==='Accepted'?'p-ok':st.status[i]==='Rejected'?'p-bad':'p-warn')+'">'+esc(st.status[i]||'Pending')+'</span></span></button>';});
+  h+='</div></nav>';
+  // Document
   const isImg=F.kind==='image';
   h+='<section class="card pane" aria-label="Folio image"><div class="bar"><b style="font-weight:500;margin-right:6px">'+esc(F.file)+'_p'+st.page+'.pdf</b><span role="group" aria-label="Images in folio" style="display:flex;gap:4px;flex-wrap:wrap">'+F.pages.map((p,n)=>'<button type="button" class="tab" data-a="page" data-v="'+(n+1)+'" aria-pressed="'+(n+1===st.page)+'" aria-label="Image '+(n+1)+'">'+(n+1)+'</button>').join('')+'</span>';
   h+='<div class="viewer-mode"><span class="viewer-mode-label">View</span><span class="seg" role="group" aria-label="Document view"><button type="button" data-a="src" data-v="original" aria-pressed="'+(S.src==='original')+'">Original</button><button type="button" data-a="src" data-v="ocr" aria-pressed="'+(S.src==='ocr')+'">OCR</button></span></div>';
@@ -399,35 +457,32 @@ function render(){
   else h+='<div class="paper '+(S.src==='ocr'?'ocr':'orig')+'" style="'+tf+'">'+mockPage()+'</div>';
   h+='</div></section>';
   // RHS
-  h+='<section class="card pane" aria-label="Extracted data" style="flex-basis:520px">';
+  h+='<section class="card pane qa-inspector" aria-label="Entry review and extracted fields">';
   h+='<div class="sumrow"><div class="sumtop"><h2 style="font-size:13px">Folio Summary</h2><span style="margin-left:auto;display:flex;gap:6px"><button type="button" class="btn btn-blue btn-sm" data-a="modal" data-v="query">'+ic('<circle cx="12" cy="12" r="9"/><path d="M9.5 9.5a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .8-1 1.5v.7M12 17h.01"/>')+'Query</button><button type="button" class="btn btn-orange btn-sm" data-a="modal" data-v="escalate">'+ic('<path d="M12 19V5M6 11l6-6 6 6"/>')+'Escalate Folio</button></span></div>';
   h+='<div class="sumcnt"><span class="cnt" style="border-color:#9DBBE3"><span style="color:var(--blue)">No. of Entries</span><b style="background:#2F6FD6">'+NE+'</b></span><span class="cnt" style="border-color:#B9BFC8"><span>Pending</span><b style="background:#6B7380">'+cnt.Pending+'</b></span><span class="cnt" style="border-color:#9ED6BC"><span style="color:#0E6B49">Accepted</span><b style="background:var(--ok)">'+cnt.Accepted+'</b></span><span class="cnt" style="border-color:#F0B3AF"><span style="color:#B42318">Rejected</span><b style="background:var(--bad)">'+cnt.Rejected+'</b></span></div></div>';
-  const fc=foc?', '+seq.length+' in QA focus':'';
-  h+='<div class="elist"><button type="button" class="ehead" data-a="list" aria-expanded="'+st.listOpen+'">'+ic('<path d="M6 9l6 6 6-6"/>')+'<span style="font-weight:600;white-space:nowrap">Entries in this Folio ('+NE+fc+')</span>'+(!st.listOpen&&cur?'<span style="color:#374151;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">Viewing '+cur.no+'. '+esc(cur.type)+'</span>':'')+'<span class="xs" style="margin-left:auto;color:var(--blue-d)">'+(st.listOpen?'Collapse':'Expand')+'</span></button>';
-  if(st.listOpen){
-    h+='<div class="erow hdr"><span>S.No</span><span>Entry Type</span><span>QA Scope</span><span>Image</span><span>Status</span></div>';
-    F.E.forEach((e,i)=>{const f=inFocus(e);const cls=['erow'];if(i===st.cur)cls.push('sel');else if(foc&&f)cls.push('focus');else if(foc)cls.push('skip');
-      const scope=!foc?'<span class="pill p-info">All</span>':(f?'<span class="pill p-warn">QA Focus</span>':'<span class="pill p-grey">Skip</span>');
-      h+='<button type="button" class="'+cls.join(' ')+'" data-a="pickl" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'"><span>'+e.no+'</span><span>'+esc(e.type)+(e.inactive?'<br><span class="pill p-bad">Cancelled / struck-through · not captured</span>':'')+'</span><span>'+scope+'</span><span>'+e.page+'</span><span>'+stP(st.status[i])+'</span></button>';});
-  }
-  h+='</div>';
   if(cur){
+  const selectedStatus=st.status[st.cur]||'Pending';
+  const selectedPages=[...new Set(cur.fields.map(field=>field.page).filter(Boolean))];if(!selectedPages.length&&cur.page)selectedPages.push(cur.page);
+  h+='<div class="qa-inspector-heading"><div><div class="eyebrow">ENTRY '+esc(cur.no)+'</div><h2>'+esc(cur.type||'Unclassified entry')+'</h2><div class="muted">Page '+(selectedPages.length?selectedPages.join(', '):cur.page||1)+(cur.sib>1?' · shares source region':'')+'</div></div><span class="pill '+(selectedStatus==='Accepted'?'p-ok':selectedStatus==='Rejected'?'p-bad':'p-warn')+'">'+esc(selectedStatus)+'</span></div><div class="qa-inspector-scroll">';
   if(foc&&!inFocus(cur))h+='<div class="small" style="margin:8px 12px 0;padding:7px 10px;background:#F3F5F8;border-radius:6px;color:#4B5563">This entry is outside the QA focus. You can still review it, or use Next Entry to jump to the next focus entry.</div>';
   if(cur.inactive){
     h+='<div class="scope" role="note" style="margin:8px 12px 0;background:#FEF1F0;border-color:#F7C9C4;color:#8A1C17"><b>Cancelled / struck through</b><span>This inactive entry is included in QA allocation but was not captured.</span>'+(cur.cancellationStatus?'<span>Source status: '+esc(cur.cancellationStatus)+'</span>':'')+'</div>';
   }else{
-  const fieldGroupCount=new Set(cur.fields.map(f=>f.table||'Attributes')).size;
-  h+='<div style="padding:12px 12px 6px;display:flex;align-items:baseline;gap:10px;flex-wrap:wrap"><h2>Extracted Fields</h2><span class="pill p-info">'+cur.fields.length+' attributes · '+fieldGroupCount+' groups</span><span class="xs muted">'+cur.no+'. '+esc(cur.type)+(cur.sib>1?' (shares its position on the image with '+(cur.sib-1)+' other entry type'+(cur.sib>2?'s':'')+')':'')+'. Select a field name to locate its text on the image.</span></div>';
-  h+='<div style="padding:0 12px"><div class="fgrid h"><span>Field</span><span>Value</span><span>Flag</span><span style="text-align:center">Note</span></div>';
-  let activeFieldTable='';
-  cur.fields.forEach((f,k)=>{const table=f.table||'Attributes';if(table!==activeFieldTable){activeFieldTable=table;const count=cur.fields.filter(item=>(item.table||'Attributes')===table).length;h+='<div class="field-group-title"><span>'+esc(table.replace(/^FT_/,'').replaceAll('_',' '))+'</span><span>'+count+'</span></div>';}const key=kOf(st.cur,k);const v=S.vals[key]!==undefined?S.vals[key]:String(f.value);const ed=v!==String(f.value);const cm=S.comments[key]||'';const op=S.openC===key;const on=S.fsel===key;
+  const fieldGroups=new Map();cur.fields.forEach((field,index)=>{const table=field.table||'Attributes';if(!fieldGroups.has(table))fieldGroups.set(table,[]);fieldGroups.get(table).push([field,index]);});
+  h+='<div class="qa-fields-heading"><h2>Extracted Fields</h2><span class="pill p-info">'+cur.fields.length+' attributes · '+fieldGroups.size+' groups</span><span class="xs muted">Select a field to locate its text on the image.</span></div>';
+  h+='<div class="qa-fields-header"><span>Field</span><span>Value</span><span>Flag</span><span style="text-align:center">Note</span></div>';
+  for(const [table,items] of fieldGroups){
+    h+='<details class="qa-field-group" open><summary>'+esc(table.replace(/^FT_/,'').replaceAll('_',' '))+'<span>'+items.length+'</span></summary><div class="qa-group-fields">';
+    items.forEach(([f,k])=>{const key=kOf(st.cur,k);const v=S.vals[key]!==undefined?S.vals[key]:String(f.value);const ed=v!==String(f.value);const cm=S.comments[key]||'';const op=S.openC===key;const on=S.fsel===key;
     h+='<div class="frow'+(on?' on':'')+'" style="border-bottom:1px solid var(--line2)"><div class="fgrid"><button type="button" class="flab" data-a="fpick" data-v="'+key+'" aria-pressed="'+on+'" title="'+(f.onImage?'Locate on image':'No marked position on the image')+'">'+ic(PIN)+'<span>'+esc(f.label)+'</span></button><div><input id="fv'+key+'" class="fv'+(ed?' ed':'')+'" value="'+esc(v)+'" data-i="val" data-k="'+key+'" aria-label="'+esc(f.label)+' value">'+(ed?'<div class="xs" style="color:#9A4A00">Corrected by QA, was: '+esc(f.value)+'</div>':'')+'</div>'+flagP(f.flag)+'<button type="button" class="cbtn'+(cm||op?' has':'')+'" data-a="cmt" data-v="'+key+'" aria-expanded="'+op+'" aria-label="'+(cm?'Edit':'Add')+' QA note on '+esc(f.label)+'">'+ic('<path d="M4 5h16v11H9l-5 4z"/>')+(cm?'<span class="dot"></span>':'')+'</button></div>';
     if(cm&&!op)h+='<div class="savednote">QA note: '+esc(cm)+'</div>';
     if(op)h+='<div class="noteed"><label for="nt'+key+'" class="xs" style="font-weight:500">QA note on '+esc(f.label)+'</label><textarea id="nt'+key+'" rows="2" data-i="draft" placeholder="What needs fixing, and why">'+esc(S.draft)+'</textarea><div style="display:flex;gap:6px;justify-content:flex-end"><button type="button" class="btn btn-quiet btn-sm" data-a="cancel">Cancel</button><button type="button" class="btn btn-sm" style="background:var(--blue);color:#fff" data-a="save" data-v="'+key+'">Save Note</button></div></div>';
     h+='</div>';});
+    h+='</div></details>';
+  }
+  }
+  }
   h+='</div>';
-  }
-  }
   h+='<div style="margin-top:auto;padding:10px 12px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid var(--line);margin-top:12px">';
   if(S.err)h+='<span class="small" role="alert" style="color:#B42318">'+S.err+'</span>';
   else if(folioDone)h+='<span class="small" role="status" style="color:#0E6B49">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' Submit this folio to continue.</span>';
