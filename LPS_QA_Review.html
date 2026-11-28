@@ -200,16 +200,20 @@ mark.fld.hit{background:rgba(255,160,0,.5)!important;outline:2px solid #E07B00;o
 .qa-field-group[open]>summary:after{content:"−"}
 .qa-field-group>summary span{float:right;margin-right:13px;color:var(--muted);font-weight:500}
 .qa-group-fields{padding:2px 5px 6px}
+.qa-record-heading{padding:7px 3px 5px;border-bottom:1px solid var(--line2);font-size:9px;font-weight:600;color:#667085}
 .qa-group-fields .fgrid{grid-template-columns:minmax(90px,1.1fr) minmax(95px,1.5fr) 48px 32px;gap:7px;padding:6px 3px}
 .qa-group-fields .flab{font-size:10px;line-height:1.3}
 .qa-group-fields .flab svg{width:13px;height:13px}
 .qa-group-fields .fv{height:30px;font-size:11px}
 .qa-group-fields .cbtn{width:29px;height:29px}
-.qa-review-footer{flex:0 0 auto;margin-top:0!important;padding:9px 11px!important;background:#fff}
-.qa-review-footer>.actions{gap:4px}
+.qa-review-footer{flex:0 0 auto;display:flex;flex-direction:column;gap:8px;margin-top:0!important;padding:9px 11px!important;border-top:1px solid var(--line);background:#fff}
+.qa-footer-toolbar{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:34px}
+.qa-footer-status{font-size:10px}
+.qa-footer-toolbar .actions{gap:4px}
 .qa-review-footer .actions .btn{width:auto;min-width:88px}
+.qa-submit-folio{width:100%;justify-content:center}
 @media(max-width:1080px){.work.qa-review-layout{grid-template-columns:142px minmax(0,1fr);height:auto;min-height:0}.qa-entry-rail{grid-row:span 2;height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.pane{height:calc(100vh - 245px);min-height:480px}.qa-review-layout>.qa-inspector{grid-column:2}.qa-inspector-scroll{max-height:none}}
-@media(max-width:700px){.work.qa-review-layout{grid-template-columns:minmax(0,1fr);padding:9px;gap:9px}.qa-entry-rail{grid-row:auto;position:static;height:210px;min-height:0}.qa-review-layout>.pane,.qa-review-layout>.qa-inspector{grid-column:1;height:70vh;min-height:420px}.qa-review-layout .document-toolbar{flex-wrap:wrap}.qa-review-layout .qa-review-footer{height:auto;flex-wrap:wrap}.qa-review-footer>.actions{margin:0;width:100%;justify-content:flex-end}.qa-review-footer .actions .btn{min-width:0;flex:1}}
+@media(max-width:700px){.work.qa-review-layout{grid-template-columns:minmax(0,1fr);padding:9px;gap:9px}.qa-entry-rail{grid-row:auto;position:static;height:210px;min-height:0}.qa-review-layout>.pane,.qa-review-layout>.qa-inspector{grid-column:1;height:70vh;min-height:420px}.qa-review-layout .document-toolbar{flex-wrap:wrap}.qa-review-layout .qa-review-footer{height:auto}.qa-footer-toolbar{align-items:stretch;flex-direction:column}.qa-footer-toolbar .actions{margin:0;width:100%;justify-content:space-between}.qa-review-footer .actions .btn{min-width:0;flex:1}}
 </style>
 </head>
 <body>
@@ -260,18 +264,24 @@ const MOCK={id:'DN-35846',file:'35846',county:'Down',batch:'B-234',analyst:'Anal
 function normalise(list){return list.map(F=>{
   if(F.kind==='mock'){
     F.items.sort((a,b)=>a.page-b.page||a.order-b.order);
-    F.E=F.items.filter(x=>x.fields||x.inactive).map(x=>Object.assign({},x,{id:x.id||x.order+'-'+x.type,fields:(x.fields||[]).map((f,k)=>({label:f[0],value:f[1],flag:f[2],onImage:(x.text+' '+x.margin).indexOf('['+k+']')>=0}))}));
+    F.E=F.items.filter(x=>x.fields||x.inactive).map(x=>Object.assign({},x,{id:x.id||x.order+'-'+x.type,regions:(x.regions||[]).map(r=>({page:Number(r.page)||Number(x.page)||1,box:r.box||null})).filter(r=>r.box),fields:(x.fields||[]).map((f,k)=>({label:f[0],value:f[1],flag:f[2],onImage:(x.text+' '+x.margin).indexOf('['+k+']')>=0}))}));
   }else{
     F.E=F.entries.slice().sort((a,b)=>a.page-b.page||a.order-b.order).map(x=>({
-      id:x.id,type:x.type,page:x.page,order:x.order,box:x.box||null,inactive:!!x.inactive,
+      id:x.id,type:x.type,page:x.page,order:x.order,box:x.box||null,
+      regions:(x.regions||[]).map(r=>({page:Number(r.page)||Number(x.page)||1,box:r.box||null})).filter(r=>r.box),
+      inactive:!!x.inactive,
       cancellationStatus:x.cancellationStatus||'',flag:x.flag||'',
-      fields:(x.fields||[]).map(f=>({label:f.label,value:f.value,table:f.table||'Attributes',page:Number(f.page)||Number(x.page)||1,basis:f.basis||'',quote:f.quote||'',flag:f.flag||x.flag||'',box:f.box||null,onImage:!!f.box}))
+      fields:(x.fields||[]).map(f=>{
+        const legacyRecord=String(f.label||'').match(/ #(\d+)$/);
+        const hasRecordIndex=f.record_index!==undefined&&f.record_index!==null&&Number.isInteger(Number(f.record_index));
+        return {label:!hasRecordIndex&&legacyRecord?f.label.slice(0,-legacyRecord[0].length):f.label,value:f.value,table:f.table||'Attributes',recordIndex:hasRecordIndex?Number(f.record_index):legacyRecord?Number(legacyRecord[1])-1:0,page:Number(f.page)||Number(x.page)||1,basis:f.basis||'',quote:f.quote||'',flag:f.flag||x.flag||'',box:f.box||null,onImage:!!f.box};
+      })
     }));
   }
   // entries sharing a page/entry position (one paragraph captured as several entry types) are numbered 4a, 4b, 4c
   let n=0;F.E.forEach((e,i)=>{const prev=F.E[i-1];if(!(prev&&prev.page===e.page&&prev.order===e.order))n++;e.n=n;});
-  F.E.forEach((e,i)=>{const sib=F.E.filter(x=>x.page===e.page&&x.order===e.order);e.sib=sib.length;if(!e.box)e.box=(sib.find(x=>x.box)||{}).box||null;e.no=sib.length>1?e.n+'abcdefghij'[sib.indexOf(e)]:String(e.n);});
-  const pageCount=Math.max(F.pages.length,...F.E.map(e=>Number(e.page)||1),1);
+  F.E.forEach((e,i)=>{const sib=F.E.filter(x=>x.page===e.page&&x.order===e.order);e.sib=sib.length;if(!e.box)e.box=(sib.find(x=>x.box)||{}).box||null;if(!e.regions.length)e.regions=(sib.find(x=>x.regions.length)||{}).regions||[];e.no=sib.length>1?e.n+'abcdefghij'[sib.indexOf(e)]:String(e.n);});
+  const pageCount=Math.max(F.pages.length,...F.E.flatMap(e=>[Number(e.page)||1,...e.regions.map(r=>r.page)]),1);
   while(F.pages.length<pageCount){
     const first=F.pages[0]||{};
     F.pages.push({img:null,width:first.width||612,height:first.height||842,missing:true});
@@ -283,7 +293,7 @@ const inFocus=e=>FOCUS.length===0||FOCUS.includes(e.type);
 const hasFocus=F=>FOCUS.length>0&&F.E.some(e=>FOCUS.includes(e.type));
 const seqOf=F=>F.E.map((e,i)=>i).filter(i=>inFocus(F.E[i]));
 const S={f:0,src:'original',zoom:100,rot:0,hl:true,vals:{},comments:{},openC:null,draft:'',err:'',modal:null,mSel:'',mText:'',toast:'',fsel:null,scrollTo:null,
-  fs:[],complete:false};
+  fs:[],groupOpen:{},complete:false};
 const newFs=()=>FOLIOS.map(F=>{
   const saved=loadSavedFolio(F.id);
   const status=F.E.map((_,index)=>saved.status&&saved.status[index]||'Pending');
@@ -342,7 +352,7 @@ const stP=s=>'<span class="pill s-'+s.toLowerCase()+'">'+s+'</span>';
 const pct=b=>'left:'+(b[0]*100)+'%;top:'+(b[1]*100)+'%;width:'+((b[2]-b[0])*100)+'%;height:'+((b[3]-b[1])*100)+'%';
 const kOf=(i,k)=>S.f+'.'+i+'.'+k;
 
-function go(i,fromList){const F=FF(),st=FS();if(i<0||i>=F.E.length)return;st.cur=i;st.page=F.E[i].page;S.openC=null;S.draft='';S.err='';S.fsel=null;S.scrollTo='e'+i;if(fromList)st.listOpen=false;render();}
+function go(i,fromList){const F=FF(),st=FS();if(i<0||i>=F.E.length)return;const entry=F.E[i];st.cur=i;if(!entry.regions.some(r=>r.page===st.page))st.page=entry.page;S.openC=null;S.draft='';S.err='';S.fsel=null;S.scrollTo='e'+i;if(fromList)st.listOpen=false;render();}
 function pickField(key){const [f,i,k]=key.split('.').map(Number);if(f!==S.f)return;const st=FS(),entry=FF().E[i],field=entry.fields[k];if(st.cur!==i){st.cur=i;S.openC=null;S.draft='';}st.page=field.page||entry.page;S.fsel=key;S.scrollTo='f'+key;render();}
 function step(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);let t;if(k<0)t=d>0?seq.find(x=>x>st.cur):[...seq].reverse().find(x=>x<st.cur);else t=seq[k+d];if(t!==undefined)go(t);}
 function canStep(d){const F=FF(),st=FS(),seq=seqOf(F);const k=seq.indexOf(st.cur);if(k<0)return d>0?seq.some(x=>x>st.cur):seq.some(x=>x<st.cur);return seq[k+d]!==undefined;}
@@ -388,16 +398,23 @@ function imagePage(){
     '<div class="missing-doc-page" style="aspect-ratio:'+(pg?.width||612)+'/'+(pg?.height||842)+'"><b>Source image unavailable for page '+st.page+'</b><span>Entry positions are shown when geometry is available.</span></div>';
   let h=pageContent+'<div class="ov">';
   F.E.forEach((e,i)=>{
-    if(e.page!==st.page)return;
     const grp=F.E.map((x,j)=>j).filter(j=>F.E[j].page===e.page&&F.E[j].order===e.order);
-    if(grp[0]!==i)return;const bx=grp.map(j=>F.E[j].box).find(Boolean);if(!bx)return;
+    if(grp[0]!==i)return;
+    const boxes=new Map();
+    grp.forEach(j=>{
+      const entry=F.E[j];
+      const regions=entry.regions.filter(region=>region.page===st.page);
+      if(regions.length)regions.forEach(region=>boxes.set(region.box.join(','),region.box));
+      else if(!entry.regions.length&&entry.page===st.page&&entry.box)boxes.set(entry.box.join(','),entry.box);
+    });
+    if(!boxes.size)return;
     const inactive=grp.some(j=>F.E[j].inactive);
     const curIn=grp.includes(st.cur),anyFocus=foc&&grp.some(j=>inFocus(F.E[j]));
     const cls=['ebox'];if(inactive)cls.push('inactive');if(curIn)cls.push('sel');else if(anyFocus)cls.push('focus');else if(!S.hl)cls.push('nohl');
     const fj=grp.find(j=>foc&&inFocus(F.E[j]));
     const tgt=curIn?grp[(grp.indexOf(st.cur)+1)%grp.length]:(fj!==undefined?fj:grp[0]);
     const tag=(grp.length>1?F.E[grp[0]].no+'–'+F.E[grp[grp.length-1]].no+'. ':'')+grp.map(j=>esc(F.E[j].type)+(F.E[j].inactive?' · cancelled / struck-through, not captured':'')+(st.status[j]!=='Pending'?' ('+st.status[j]+')':'')).join(', ');
-    h+='<button type="button" id="e'+i+'" class="'+cls.join(' ')+'" style="'+pct(bx)+'" data-a="pick" data-v="'+tgt+'" aria-label="'+(grp.length>1?'Entries '+grp.map(j=>F.E[j].no+' '+esc(F.E[j].type)).join(', '):'Entry '+e.no+', '+esc(e.type))+'"><span class="etag">'+tag+(anyFocus?' (QA Focus)':'')+'</span></button>';
+    [...boxes.values()].forEach((box,regionIndex)=>{h+='<button type="button" id="e'+i+'-r'+regionIndex+'" class="'+cls.join(' ')+'" style="'+pct(box)+'" data-a="pick" data-v="'+tgt+'" aria-label="'+(grp.length>1?'Entries '+grp.map(j=>F.E[j].no+' '+esc(F.E[j].type)).join(', '):'Entry '+e.no+', '+esc(e.type))+'"><span class="etag">'+tag+(anyFocus?' (QA Focus)':'')+'</span></button>';});
   });
   const e=F.E[st.cur];
   if(e)e.fields.forEach((f,k)=>{if(!f.box||(f.page||e.page)!==st.page)return;const key=kOf(st.cur,k);h+='<button type="button" id="f'+key+'" class="fbox'+(S.fsel===key?' hit':'')+'" style="'+pct(f.box)+'" data-a="fpick" data-v="'+key+'" aria-label="'+esc(f.label)+'" title="'+esc(f.label)+': '+esc(f.value)+'"></button>';});
@@ -417,6 +434,7 @@ function render(){
     document.getElementById('root').innerHTML='<header class="top"><h1>Quality Assurance: Review</h1></header><div style="padding:28px"><section class="card" style="max-width:620px;margin:8vh auto;padding:28px;display:flex;flex-direction:column;gap:12px"><span class="pill p-ok" style="align-self:flex-start">Queue complete</span><h2 style="font-size:22px">No More Folios to QA</h2><p class="muted" style="margin:0">All folios in this allocation have been submitted. Your progress is saved in this browser.</p><a class="btn btn-primary" style="align-self:flex-start" href="LPS_QA_Analytics.html?qa=complete">Go to Dashboard</a></section></div>';
     return;
   }
+  document.querySelectorAll('.qa-field-group').forEach(group=>{S.groupOpen[group.dataset.groupKey]=group.open;});
   if(!FOLIOS.length){
     const msg=DATA_BANNER||('Reading <code>'+DATA_ROOT+'/index.json</code>…');
     document.getElementById('root').innerHTML='<header class="top"><div style="display:flex;align-items:center;gap:12px;width:100%;flex-wrap:wrap"><h1>Quality Assurance: Review</h1><a class="small" href="LPS_QA_Allocation.html" style="text-decoration:none">Back to Allocation</a></div></header><div style="padding:22px"><div class="card" style="padding:18px;max-width:680px;display:flex;flex-direction:column;gap:10px"><h2>Nothing to review</h2><span class="small muted" role="status">'+msg+'</span><span class="small muted">Ingest a delivery with <code>python qa_ingest.py "&lt;root folder&gt;"</code>, then serve this folder (<code>python -m http.server 8080</code>) and reload.</span></div></div>';
@@ -437,7 +455,7 @@ function render(){
   h+='<nav class="qa-entry-rail" aria-label="Entries in this folio"><div class="qa-entry-list-heading"><span>ENTRIES</span><span>'+NE+'</span></div><div class="qa-entry-list">';
   F.E.forEach((e,i)=>{const focused=inFocus(e),cls=['qa-entry-item'];if(i===st.cur)cls.push('selected');if(focused)cls.push('focus');else if(foc)cls.push('skipped');
     const scope=!foc?'':(focused?'<span class="pill p-warn">QA focus</span>':'<span class="pill p-grey">Skip</span>');
-    const pages=[...new Set(e.fields.map(field=>field.page).filter(Boolean))];if(!pages.length&&e.page)pages.push(e.page);
+    const pages=[...new Set([...e.regions.map(region=>region.page),...e.fields.map(field=>field.page)].filter(Boolean))];if(!pages.length&&e.page)pages.push(e.page);
     h+='<button type="button" class="'+cls.join(' ')+'" data-a="pickl" data-v="'+i+'" aria-pressed="'+(i===st.cur)+'"><span class="qa-entry-number">'+String(i+1).padStart(2,'0')+'</span><strong>'+esc(e.type||'Unclassified entry')+'</strong><small>Page '+(pages.length?pages.join(', '):e.page||1)+(e.inactive?' · Struck through':'')+'</small><span class="qa-entry-meta">'+scope+'<span class="pill '+(st.status[i]==='Accepted'?'p-ok':st.status[i]==='Rejected'?'p-bad':'p-warn')+'">'+esc(st.status[i]||'Pending')+'</span></span></button>';});
   h+='</div></nav>';
   // Document
@@ -468,27 +486,31 @@ function render(){
   if(cur.inactive){
     h+='<div class="scope" role="note" style="margin:8px 12px 0;background:#FEF1F0;border-color:#F7C9C4;color:#8A1C17"><b>Cancelled / struck through</b><span>This inactive entry is included in QA allocation but was not captured.</span>'+(cur.cancellationStatus?'<span>Source status: '+esc(cur.cancellationStatus)+'</span>':'')+'</div>';
   }else{
-  const fieldGroups=new Map();cur.fields.forEach((field,index)=>{const table=field.table||'Attributes';if(!fieldGroups.has(table))fieldGroups.set(table,[]);fieldGroups.get(table).push([field,index]);});
+  const fieldGroups=new Map();cur.fields.forEach((field,index)=>{const table=field.table||'Attributes';if(!fieldGroups.has(table))fieldGroups.set(table,new Map());const records=fieldGroups.get(table),record=field.recordIndex||0;if(!records.has(record))records.set(record,[]);records.get(record).push([field,index]);});
   h+='<div class="qa-fields-heading"><h2>Extracted Fields</h2><span class="pill p-info">'+cur.fields.length+' attributes · '+fieldGroups.size+' groups</span><span class="xs muted">Select a field to locate its text on the image.</span></div>';
   h+='<div class="qa-fields-header"><span>Field</span><span>Value</span><span>Flag</span><span style="text-align:center">Note</span></div>';
-  for(const [table,items] of fieldGroups){
-    h+='<details class="qa-field-group" open><summary>'+esc(table.replace(/^FT_/,'').replaceAll('_',' '))+'<span>'+items.length+'</span></summary><div class="qa-group-fields">';
-    items.forEach(([f,k])=>{const key=kOf(st.cur,k);const v=S.vals[key]!==undefined?S.vals[key]:String(f.value);const ed=v!==String(f.value);const cm=S.comments[key]||'';const op=S.openC===key;const on=S.fsel===key;
+  for(const [table,records] of fieldGroups){
+    const groupKey=S.f+'|'+cur.id+'|'+table;
+    h+='<details class="qa-field-group" data-group-key="'+esc(groupKey)+'"'+(S.groupOpen[groupKey]?' open':'')+'><summary>'+esc(table.replaceAll('_',' ').replaceAll('FT ','').replaceAll('LHOLD','Leasehold'))+'<span>'+records.size+'</span></summary><div class="qa-group-fields">';
+    for(const [record,items] of records){
+      h+='<div class="qa-record-heading">Record '+(Number(record)+1)+'</div>';
+      items.forEach(([f,k])=>{const key=kOf(st.cur,k);const v=S.vals[key]!==undefined?S.vals[key]:String(f.value);const ed=v!==String(f.value);const cm=S.comments[key]||'';const op=S.openC===key;const on=S.fsel===key;
     h+='<div class="frow'+(on?' on':'')+'" style="border-bottom:1px solid var(--line2)"><div class="fgrid"><button type="button" class="flab" data-a="fpick" data-v="'+key+'" aria-pressed="'+on+'" title="'+(f.onImage?'Locate on image':'No marked position on the image')+'">'+ic(PIN)+'<span>'+esc(f.label)+'</span></button><div><input id="fv'+key+'" class="fv'+(ed?' ed':'')+'" value="'+esc(v)+'" data-i="val" data-k="'+key+'" aria-label="'+esc(f.label)+' value">'+(ed?'<div class="xs" style="color:#9A4A00">Corrected by QA, was: '+esc(f.value)+'</div>':'')+'</div>'+flagP(f.flag)+'<button type="button" class="cbtn'+(cm||op?' has':'')+'" data-a="cmt" data-v="'+key+'" aria-expanded="'+op+'" aria-label="'+(cm?'Edit':'Add')+' QA note on '+esc(f.label)+'">'+ic('<path d="M4 5h16v11H9l-5 4z"/>')+(cm?'<span class="dot"></span>':'')+'</button></div>';
     if(cm&&!op)h+='<div class="savednote">QA note: '+esc(cm)+'</div>';
     if(op)h+='<div class="noteed"><label for="nt'+key+'" class="xs" style="font-weight:500">QA note on '+esc(f.label)+'</label><textarea id="nt'+key+'" rows="2" data-i="draft" placeholder="What needs fixing, and why">'+esc(S.draft)+'</textarea><div style="display:flex;gap:6px;justify-content:flex-end"><button type="button" class="btn btn-quiet btn-sm" data-a="cancel">Cancel</button><button type="button" class="btn btn-sm" style="background:var(--blue);color:#fff" data-a="save" data-v="'+key+'">Save Note</button></div></div>';
     h+='</div>';});
+    }
     h+='</div></details>';
   }
   }
   }
   h+='</div>';
-  h+='<div style="margin-top:auto;padding:10px 12px 12px;display:flex;flex-wrap:wrap;align-items:center;gap:8px;border-top:1px solid var(--line);margin-top:12px">';
-  if(S.err)h+='<span class="small" role="alert" style="color:#B42318">'+S.err+'</span>';
-  else if(folioDone)h+='<span class="small" role="status" style="color:#0E6B49">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' Submit this folio to continue.</span>';
-  else h+='<span class="small muted" role="status">'+seq.filter(i=>st.status[i]==='Pending').length+' in-scope entr'+(seq.filter(i=>st.status[i]==='Pending').length===1?'y':'ies')+' remaining.</span>';
-  h+='<button type="button" class="btn btn-primary" data-a="submitfolio"'+(folioDone?'':' disabled')+'>Submit Folio</button>';
+  h+='<div class="qa-review-footer"><div class="qa-footer-toolbar">';
+  if(S.err)h+='<span class="small qa-footer-status" role="alert" style="color:#B42318">'+S.err+'</span>';
+  else if(folioDone)h+='<span class="small qa-footer-status" role="status" style="color:#0E6B49">'+(foc?'All QA focus entries reviewed.':'All entries reviewed.')+' Submit this folio to continue.</span>';
+  else h+='<span class="small muted qa-footer-status" role="status">'+seq.filter(i=>st.status[i]==='Pending').length+' in-scope entr'+(seq.filter(i=>st.status[i]==='Pending').length===1?'y':'ies')+' remaining.</span>';
   h+='<div class="actions" role="group" aria-label="Entry actions"><button type="button" class="btn btn-quiet" data-a="prev"'+(canStep(-1)?'':' disabled')+'>'+ic(L)+'Previous Entry</button><button type="button" class="btn btn-quiet" data-a="next"'+(canStep(1)?'':' disabled')+'>Next Entry'+ic(R)+'</button><span class="sep" aria-hidden="true"></span><button type="button" class="btn btn-ok" data-a="accept"'+(cur?'':' disabled')+'>Accept Entry</button><button type="button" class="btn btn-bad" data-a="reject"'+(cur?'':' disabled')+'>Reject Entry</button></div></div>';
+  h+='<button type="button" class="btn btn-primary qa-submit-folio" data-a="submitfolio"'+(folioDone?'':' disabled')+'>Submit Folio</button></div>';
   h+='</section></div>';
   if(S.modal){const isQ=S.modal==='query';const opts=isQ?[['entry-type','Entry type classification'],['illegible','Illegible or unclear text'],['active','Active or inactive status'],['schema','Schema or field rule']]:[['S01','Senior Analyst S01 (Mobius)'],['S02','Senior Analyst S02 (Mobius)'],['LEAD','LPS Lead Reviewer']];
     h+='<div class="ovl"><div class="dlg" role="dialog" aria-modal="true" aria-labelledby="dlgh"><div style="display:flex;align-items:center;padding:14px 18px;border-bottom:1px solid var(--line)"><h2 id="dlgh" style="font-size:16px">'+(isQ?'Raise a Query':'Escalate Folio')+'</h2><button type="button" class="btn-link" data-a="closem" aria-label="Close" style="margin-left:auto;color:#4B5563">'+ic('<path d="M6 6l12 12M18 6L6 18"/>')+'</button></div><div style="padding:16px 18px;display:flex;flex-direction:column;gap:12px"><span class="small muted">Folio '+esc(F.id)+', batch '+esc(F.batch)+(cur?', entry '+cur.no+' ('+esc(cur.type)+')':'')+'</span><label>'+(isQ?'Query About':'Reassign To')+'<select id="msel" data-i="msel">'+opts.map(o=>'<option value="'+o[0]+'"'+(S.mSel===o[0]?' selected':'')+'>'+o[1]+'</option>').join('')+'</select></label><label>'+(isQ?'Your Question':'Reason for Escalation')+'<textarea id="mtxt" rows="4" data-i="mtxt" placeholder="'+(isQ?'Describe what needs clarifying for Mobius QC':'Explain why this folio needs a senior review')+'">'+esc(S.mText)+'</textarea></label></div><div style="display:flex;justify-content:flex-end;gap:8px;padding:12px 18px;border-top:1px solid var(--line)"><button type="button" class="btn btn-quiet" data-a="closem">Cancel</button><button type="button" class="btn" style="color:#fff;background:'+(isQ?'var(--blue)':'#B85A00')+'" data-a="submitm">'+(isQ?'Send Query':'Escalate Folio')+'</button></div></div></div>';}

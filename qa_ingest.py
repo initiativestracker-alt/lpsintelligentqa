@@ -45,6 +45,7 @@ HASH_SUFFIX = re.compile(r"-[0-9a-f]{12}$")     # the producer's source_id hash
 VERSION_SUFFIX = re.compile(r"_(\d+)$")         # a rerun suffix
 PAGE_SUFFIX = re.compile(r"_p(\d+)$")           # one page of an image folio
 COORDS_SUFFIX = "-coordinates"
+REGIONS_SUFFIX = "-entry-regions"
 
 META_COLUMNS = ["source_id", "source_filename", "folio_name", "folio_number", "county", "register_type",
                 "first_registration_date", "edition", "opened_date", "prior_folio",
@@ -209,13 +210,15 @@ def parse_name(filename):
     """Split a delivered filename into ``(key, role, version, page)``.
 
     ``role`` is ``source`` (a PDF), ``image`` (one page of an image folio), ``values``
-    (the extracted CSV) or ``coords`` (the coordinate CSV). ``key`` is the folio's base
-    name with every suffix removed.
+    (the extracted CSV), ``coords`` (field coordinates) or ``regions`` (entry regions).
+    ``key`` is the folio's base name with every suffix removed.
     """
     stem, ext = Path(filename).stem, Path(filename).suffix.lower()
     role = "other"
 
-    if stem.endswith(COORDS_SUFFIX):
+    if stem.endswith(REGIONS_SUFFIX):
+        stem, role = stem[: -len(REGIONS_SUFFIX)], "regions"
+    elif stem.endswith(COORDS_SUFFIX):
         stem, role = stem[: -len(COORDS_SUFFIX)], "coords"
     if ext in SOURCE_EXT:
         role = "source"
@@ -330,13 +333,17 @@ def family_of(chosen):
     """Group resolved files into folios: one per base name."""
     folios = {}
     for (key, role, page), (_version, name, _page) in chosen.items():
-        entry = folios.setdefault(key, {"values": None, "coords": None, "source": None, "images": []})
+        entry = folios.setdefault(key, {
+            "values": None, "coords": None, "regions": None, "source": None, "images": []
+        })
         if role == "source":
             entry["source"] = name
         elif role == "values":
             entry["values"] = name
         elif role == "coords":
             entry["coords"] = name
+        elif role == "regions":
+            entry["regions"] = name
         elif role == "image":
             entry["images"].append((page or len(entry["images"]) + 1, name))
     for entry in folios.values():
@@ -408,6 +415,27 @@ def load_coordinates(payload):
         if info["page"] is None:
             info["page"] = page
     return index, entries
+
+
+def load_entry_regions(payload):
+    """Read the producer's explicit entry regions, separate from field evidence."""
+    regions = {}
+    if payload is None:
+        return regions
+    for row in rows_of(payload):
+        entry_id = (row.get("entry_id") or "").strip()
+        page = to_int(row.get("page"))
+        points = [to_float(row.get(k)) for k in ("x0_pt", "y0_pt", "x1_pt", "y1_pt")]
+        if not entry_id or not page or not all(point is not None for point in points):
+            continue
+        regions.setdefault(entry_id, []).append({
+            "page": page,
+            "index": to_int(row.get("region_index")) or 0,
+            "box": points,
+        })
+    for entry_regions in regions.values():
+        entry_regions.sort(key=lambda region: (region["page"], region["index"]))
+    return regions
 
 
 # --------------------------------------------------------------------------- page images
@@ -530,6 +558,8 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
     tables = field_columns(header)
     coords_index, coords_entries = load_coordinates(
         payloads[family["coords"]] if family["coords"] else None)
+    regions_by_entry = load_entry_regions(
+        payloads[family["regions"]] if family.get("regions") else None)
 
     # Page extent from the recorded boxes, used when there is no source document.
     xs = [c["box"][2] for c in coords_index.values() if c["box"]]
@@ -553,6 +583,8 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
         info_page = to_int(coords_entries.get(entry["id"], {}).get("page"))
         if info_page:
             referenced_pages.append(info_page)
+        referenced_pages.extend(region["page"]
+                                for region in regions_by_entry.get(entry["id"], []))
         try:
             source_pages = json.loads(entry["row"].get("source_pages") or "[]")
         except json.JSONDecodeError:
@@ -580,7 +612,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
         row = entry["row"]
         entry_id = entry["id"]
         info = coords_entries.get(entry_id, {})
-        fields, boxes = [], []
+        fields, boxes_by_page = [], {}
         entry_type = row.get("entry_type") or "Entry"
         cancellation_status = (row.get("cancellation_status") or "").strip()
         strike_marker = str(row.get("FT_FOLIO_TEXT.IS_ENTRY_STRIKETHROUGH") or
@@ -598,7 +630,7 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                 page = located.get("page") or info.get("page") or 1
                 box = fraction(located.get("box"), sizes.get(page, (0, 0)))
                 if box:
-                    boxes.append(box)
+                    boxes_by_page.setdefault(page, []).append(box)
         else:
             records_by_table = {}
             for table in tables:
@@ -625,12 +657,12 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
                         page = located.get("page") or info.get("page") or 1
                         box = fraction(located.get("box"), sizes.get(page, (0, 0)))
                         if box:
-                            boxes.append(box)
+                            boxes_by_page.setdefault(page, []).append(box)
                         fields.append({
-                            "label": display_field_name(field_names, entry_type, table, field)
-                                     + (f" #{index + 1}" if count > 1 else ""),
+                            "label": display_field_name(field_names, entry_type, table, field),
                             "value": "" if value is None else str(value),
                             "table": table,
+                            "record_index": index,
                             "page": page,
                             "basis": located.get("basis", ""),
                             "flag": flag,
@@ -642,7 +674,18 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
             source_pages = json.loads(row.get("source_pages") or "[]")
         except json.JSONDecodeError:
             source_pages = []
-        page = info.get("page") or (source_pages[0] if source_pages else 1)
+        regions = []
+        for region in regions_by_entry.get(entry_id, []):
+            region_page = region["page"]
+            box = fraction(region["box"], sizes.get(region_page, (0, 0)))
+            if box:
+                regions.append({"page": region_page, "box": box})
+        if not regions:
+            regions = [{"page": region_page, "box": union(region_boxes)}
+                       for region_page, region_boxes in sorted(boxes_by_page.items())
+                       if region_boxes]
+        page = (regions[0]["page"] if regions else
+                info.get("page") or (source_pages[0] if source_pages else 1))
         number = to_int(info.get("number"))
         built.append({
             "id": entry_id,
@@ -654,7 +697,8 @@ def build_folio(key, family, payloads, batch_name, out_dir, public, warnings, fi
             "cancellationStatus": cancellation_status,
             "reasonCodes": reason_codes,
             "flag": flag,
-            "box": union(boxes),
+            "box": union([region["box"] for region in regions if region["page"] == page]),
+            "regions": regions,
             "fields": fields,
         })
 
